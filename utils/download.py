@@ -78,7 +78,7 @@ def matches(profile_id):
         
         data = json.loads(r.text)
         for match_data in data:
-            if match_data['leaderboard_id'] == 3:
+            if match_data['leaderboard_id'] == 3 and match_data['num_players'] == 2:
                 match = DownloadMatch(match_data)
                 r1v1[match.started] = match
         if len(data) < MAX_DOWNLOAD:
@@ -104,4 +104,4 @@ def matches(profile_id):
         writer.writerow(Match.header)
         writer.writerows([m.to_csv for m in matches])
 if __name__ == '__main__':
-    matches('261906')
+    matches('271202')

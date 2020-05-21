@@ -1,6 +1,7 @@
 """ Basic objects used throughout the system."""
 
 import csv
+import json
 import os
 import pathlib
 import re
@@ -12,17 +13,21 @@ class Match():
     data_file_template = '{}/data/matches_for_{{}}.csv'.format(PARENT_DIR)
     header = ['Match Id', 'Started', 'Map', 'Civ 1', 'RATING 1', 'Player 1', 'Civ 2', 'RATING 2', 'Player 2', 'Winner',]
     def __init__(self, data):
-        self.match_id = str(data['match_id'])
-        self.started = data['started']
-        self.map_type = data['map_type']
-        self.player_id_1 = str(data['players'][0]['profile_id'])
-        self.civ_1 = data['players'][0]['civ']
-        self.rating_1 = data['players'][0]['rating']
-        self.player_id_2 = str(data['players'][1]['profile_id'])
-        self.civ_2 = data['players'][1]['civ']
-        self.rating_2 = data['players'][1]['rating']
-        self.winner = 0
- 
+        try:
+            self.match_id = str(data['match_id'])
+            self.started = data['started']
+            self.map_type = data['map_type']
+            self.player_id_1 = str(data['players'][0]['profile_id'])
+            self.civ_1 = data['players'][0]['civ']
+            self.rating_1 = data['players'][0]['rating']
+            self.player_id_2 = str(data['players'][1]['profile_id'])
+            self.civ_2 = data['players'][1]['civ']
+            self.rating_2 = data['players'][1]['rating']
+            self.winner = 0
+        except IndexError:
+            print(json.dumps(data))
+            raise
+
     def rating_for(self, profile_id):
         if str(profile_id) == self.player_id_1:
             return self.rating_1
