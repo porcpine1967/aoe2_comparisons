@@ -158,5 +158,5 @@ def all_matches_and_ratings():
 if __name__ == '__main__':
     matching_profiles = profiles_from_files('matches')
     rating_profiles = profiles_from_files('ratings')
-    for p in matching_profiles -rating_profiles:
+    for p in matching_profiles - rating_profiles:
         print(p)

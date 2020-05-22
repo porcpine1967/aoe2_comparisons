@@ -13,9 +13,8 @@ import matplotlib.pyplot as plt
 import requests
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
-sys.path.append(ROOT_DIR)
 
-from utils.models import Match, Rating, User
+from utils.models import Match, Rating, User, MatchReport
 import utils.download
 import utils.lookup
 
@@ -75,14 +74,8 @@ def download_data(users):
 
 def graph_sample():
     ctr = Counter()
-    elos = defaultdict(lambda:0)
-    for match in Match.all():
-        if match.rating_1:
-            elos[match.player_id_1] = max(match.rating_1, elos[match.player_id_1])
-        if match.rating_2:
-            elos[match.player_id_2] = max(match.rating_2, elos[match.player_id_2])
-    for elo in elos.values():
-        ctr[elo] += 1
+    for report in MatchReport.all('test'):
+        ctr[report.score] += 1
     x = []
     for i in range(max(ctr) + 1):
         x.append(ctr[i])
@@ -199,6 +192,4 @@ def run():
     for profile_id in (row[5], row[8]):
         old_determine(profile_id, [str(x) for x in row])
 if __name__ == '__main__':
-#    run()
-    test_match_winner()
-
+    graph_sample()
