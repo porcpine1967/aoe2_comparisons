@@ -6,11 +6,11 @@ import os
 import pathlib
 import re
 
-PARENT_DIR = pathlib.Path(__file__).parent.parent.absolute()
+ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 class Match():
     """Holds match data from api"""
-    data_file_template = '{}/data/matches_for_{{}}.csv'.format(PARENT_DIR)
+    data_file_template = '{}/data/matches_for_{{}}.csv'.format(ROOT_DIR)
     header = ['Match Id', 'Started', 'Map', 'Civ 1', 'RATING 1', 'Player 1', 'Civ 2', 'RATING 2', 'Player 2', 'Winner',]
     def __init__(self, data):
         try:
@@ -35,6 +35,18 @@ class Match():
             return self.rating_2
         else:
             return None
+
+    def mark_lost(self, profile_id):
+        if profile_id == self.player_id_1:
+            self.winner = 2
+        elif profile_id == self.player_id_2:
+            self.winner = 1
+        
+    def mark_won(self, profile_id):
+        if str(profile_id) == self.player_id_1:
+            self.winner = 1
+        elif str(profile_id) == self.player_id_2:
+            self.winner = 2
 
     @property
     def winner_id(self):
@@ -84,7 +96,7 @@ class Match():
         """ Returns all matches for a profile """
         data_file = Match.data_file_template.format(profile_id)
         if not os.path.exists(data_file):
-            raise RuntimeError('No match data available')
+            raise RuntimeError('No match data available for {}'.format(profile_id))
         matches = []
         with open(data_file) as f:
             reader = csv.reader(f)
@@ -95,10 +107,10 @@ class Match():
                     pass
         return matches
 
-    def all():
+    def all(include_duplicates=False):
         """ Returns all matches for all users, with duplicates removed """
         data_file_pattern = re.compile('matches_for_[0-9]+\.csv')
-        data_dir = '{}/data'.format(PARENT_DIR)
+        data_dir = '{}/data'.format(ROOT_DIR)
         matches = []
         match_ids = set()
         for filename in os.listdir(data_dir):
@@ -106,7 +118,7 @@ class Match():
                 with open('{}/{}'.format(data_dir, filename)) as f:
                     reader = csv.reader(f)
                     for row in reader:
-                        if row[0] not in match_ids:
+                        if include_duplicates or row[0] not in match_ids:
                             match_ids.add(row[0])
                             try:
                                 matches.append(Match.from_csv(row))
@@ -118,7 +130,7 @@ class Rating():
     """Holds rating data from api
     example: "rating":1150,"num_wins":27,"num_losses":26,"streak":-4,"drops":0,"timestamp":1589316182"""
     header = ['Profile Id', 'Rating', 'Wins', 'Losses', 'Drops', 'Timestamp',]
-    url_template = 'https://aoe2.net/api/player/ratinghistory?start=1&count=10000&game=aoe2de&leaderboard_id=3&profile_id={profile_id}'
+    data_file_template = '{}/data/ratings_for_{{}}.csv'.format(ROOT_DIR)
     def __init__(self, profile_id, data):
         self.profile_id = profile_id
         self.rating = data['rating']
@@ -126,16 +138,48 @@ class Rating():
         self.num_losses = data['num_losses']
         self.drops = data['drops']
         self.timestamp = data['timestamp']
+        self.old_rating = None
+        self.won_state = None
 
     @property
     def to_csv(self):
-        return [self.profile_id, self.rating, self.num_wins, self.num_losses, self.drops, self.timestamp,]
+        return [self.profile_id, self.rating, self.old_rating, self.num_wins, self.num_losses, self.drops, self.timestamp, self.won_state,]
 
+    def from_csv(row):
+        rating = Rating(row[0], {'rating': int(row[1]),
+                               'num_wins': int(row[3]),
+                               'num_losses': int(row[4]),
+                                   'drops': int(row[5]),
+                                   'timestamp': int(row[6])})
+        rating.won_state = row[7]
+        rating.old_rating = int(row[2])
+        return rating
+
+    def all_for(profile_id):
+        """ Returns all ratings for a profile """
+        data_file = Rating.data_file_template.format(profile_id)
+        if not os.path.exists(data_file):
+            raise RuntimeError('No rating data available')
+        ratings = []
+        with open(data_file) as f:
+            reader = csv.reader(f)
+            for row in reader:
+                try:
+                    ratings.append(Rating.from_csv(row))
+                except ValueError:
+                    pass
+        return ratings
+
+    def lookup_for(profile_id):
+        lookup = defaultdict(lambda:[])
+        for rating in Rating.all_for(profile_id):
+            lookup[rating.old_rating].append(rating)
+        return lookup
 
 class User():
     """Holds user data from user.csv"""
     header = ['Profile Id', 'Name', 'Rating', 'Number Games Played',]
-    data_file = '{}/data/users.csv'.format(PARENT_DIR)
+    data_file = '{}/data/users.csv'.format(ROOT_DIR)
     def __init__(self, data):
         self.profile_id = data['profile_id']
         self.name = data['name']

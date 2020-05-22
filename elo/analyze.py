@@ -12,8 +12,8 @@ import sys
 import matplotlib.pyplot as plt
 import requests
 
-PARENT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
-sys.path.append(PARENT_DIR)
+ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
+sys.path.append(ROOT_DIR)
 
 from utils.models import Match, Rating, User
 import utils.download
@@ -48,7 +48,7 @@ def rating_from_csv(row):
 def get_users():
     """ Gets all users in users.csv """
     users = {}
-    with open('{}/data/users.csv'.format(PARENT_DIR)) as f:
+    with open('{}/data/users.csv'.format(ROOT_DIR)) as f:
         r = csv.reader(f)
         for row in r:
             try:
@@ -145,7 +145,20 @@ def get_some_users(cnt):
     users = get_random_users(cnt)
     download_data(users)
 
+def contradictions():
+    """ Go through all the matches and see if there are contradictions in who won """
+    match_info = defaultdict(lambda: [])
+    matches = Match.all(True)
+    for match in matches:
+        match_info[match.match_id].append(match.winner)
+    ctr = Counter()
+    baddies = set()
+    for match_id, winners in match_info.items():
+        ctr['-'.join([str(x) for x in sorted(winners)])] += 1
+    for k, cnt in ctr.most_common():
+        print(k, cnt)
+
 def run():
-    elo_as_determinant()
+    contradictions()
 if __name__ == '__main__':
     run()
