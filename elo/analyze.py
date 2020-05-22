@@ -75,11 +75,14 @@ def download_data(users):
 def graph_sample():
     ctr = Counter()
     for report in MatchReport.all('test'):
-        ctr[report.score] += 1
+        ctr[report.civ_1] += 1
+        ctr[report.civ_2] += 1
     x = []
-    for i in range(max(ctr) + 1):
-        x.append(ctr[i])
-    plt.plot(x)
+    y = []
+    for k, v in ctr.items():
+        x.append(k)
+        y.append(v)
+    plt.plot(x, y)
     plt.show()
 
 def civ_details():
