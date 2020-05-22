@@ -28,7 +28,7 @@ def users():
     if os.path.exists(User.data_file):
         print('users.csv already exists')
         return
-    url_template = 'https://aoe2.net/api/leaderboard?game=aoe2de&leaderboard_id=3&start={start}&count={count}'    
+    url_template = 'https://aoe2.net/api/leaderboard?game=aoe2de&leaderboard_id=3&start={start}&count={count}'
     country_counter = defaultdict(lambda: [])
     records = 0
     rows = []
@@ -68,7 +68,7 @@ def matches(profile_id):
         if r.status_code != 200:
             print(r.text)
             sys.exit(1)
-        
+
         data = json.loads(r.text)
         for match_data in data:
             if match_data['leaderboard_id'] == 3 and match_data['num_players'] == 2:
@@ -107,7 +107,7 @@ def ratings(profile_id):
         if r.status_code != 200:
             print(r.text)
             sys.exit(1)
-        
+
         data = json.loads(r.text)
         for rating_data in data:
             rating = Rating(profile_id, rating_data)
@@ -128,9 +128,9 @@ def ratings(profile_id):
         writer = csv.writer(f)
         writer.writerow(Rating.header)
         writer.writerows([m.to_csv for m in ratings])
-    
+
 def profiles_from_files(file_prefix):
-    profile_pattern = re.compile('{}_for_([0-9]+).csv'.format(file_prefix))
+    profile_pattern = re.compile(r'{}_for_([0-9]+)\.csv'.format(file_prefix))
     profiles = set()
     for filename in os.listdir('{}/data'.format(ROOT_DIR)):
         m = profile_pattern.match(filename)
@@ -141,7 +141,7 @@ def profiles_from_files(file_prefix):
 def all_matches_and_ratings():
     print('Calling All Matches and Ratings')
     profile_ids = profiles_from_files('matches')
-    
+
     to_download = set()
     for match in Match.all():
         if not match.player_id_1 in profile_ids:
@@ -154,7 +154,7 @@ def all_matches_and_ratings():
         ratings(profile_id)
     if to_download:
         all_matches_and_ratings()
-        
+
 if __name__ == '__main__':
     matching_profiles = profiles_from_files('matches')
     rating_profiles = profiles_from_files('ratings')

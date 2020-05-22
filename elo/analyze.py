@@ -40,8 +40,6 @@ class SampleUser(User):
         last_rating = sorted(self.ratings, key=lambda x: x.timestamp)[-1]
         return abs(last_rating.num_wins - last_rating.num_losses)/(last_rating.num_wins + last_rating.num_losses)
 
-    
-
 def rating_from_csv(row):
     return Rating(row[0], { 'rating': int(row[1]), 'num_wins': int(row[2]), 'num_losses': int(row[3]), 'drops': int(row[4]), 'timestamp' : int(row[5]) })
 
@@ -67,9 +65,9 @@ def retrieve_data(url):
         print(r.text)
         sys.exit(1)
     return json.loads(r.text)
-    
+
 def download_data(users):
-    """ Downloads and stores the ratings history of supplied users. 
+    """ Downloads and stores the ratings history of supplied users.
         Returns path to file in which data is stored
 """
     for user in users:
@@ -152,13 +150,55 @@ def contradictions():
     for match in matches:
         match_info[match.match_id].append(match.winner)
     ctr = Counter()
-    baddies = set()
     for match_id, winners in match_info.items():
         ctr['-'.join([str(x) for x in sorted(winners)])] += 1
     for k, cnt in ctr.most_common():
         print(k, cnt)
 
+def test_match_winner():
+    match_info = defaultdict(lambda: [])
+    matches = Match.all(True)
+    for match in matches:
+        if match.winner == 0:
+            continue
+        if not match.determine_winner() == match.winner:
+            print('****************************')
+            print(match.winner, match.determine_winner())
+            row = match.to_csv
+            for profile_id in (row[5], row[8]):
+                old_determine(profile_id, [str(x) for x in row])
+
+def test_determine(row):
+    """ Takes a match row and determines winner """
+    match = Match.from_csv(row)
+    print(match.determine_winner())
+
+def old_determine(profile_id, row):
+    won_state = set(('won',))
+    lost_state = set(('lost',))
+    rating_lookup = defaultdict(lambda:[])
+    for rating in Rating.all_for(profile_id):
+        rating_lookup[rating.old_rating].append(rating)
+
+    match = Match.from_csv(row)
+    match_rating = match.rating_for(profile_id)
+    if not match_rating in rating_lookup:
+        return
+    possible_win_states = set()
+    for rating in rating_lookup[match_rating]:
+        if 0 < rating.timestamp - match.started < 3600:
+            possible_win_states.add(rating.won_state)
+    if possible_win_states == won_state:
+        print('{} won'.format(profile_id))
+    elif possible_win_states == lost_state:
+        print('{} lost'.format(profile_id))
+
 def run():
-    contradictions()
+    row = ['21258848', 1589298957, 86, 28, 982, '1372812', 4, 1017, '1135871', 2]
+    test_determine([str(x) for x in row])
+    for profile_id in (row[5], row[8]):
+        old_determine(profile_id, [str(x) for x in row])
 if __name__ == '__main__':
-    run()
+#    run()
+    test_match_winner()
+

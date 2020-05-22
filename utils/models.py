@@ -1,5 +1,6 @@
 """ Basic objects used throughout the system."""
 
+from collections import defaultdict
 import csv
 import json
 import os
@@ -28,6 +29,70 @@ class Match():
             print(json.dumps(data))
             raise
 
+    def player_won(profile_id, rating, started):
+        """ Looks in the ratings file for ratings with the same rating and a timestamp less than an hour ahead
+        and and determines whether the player won or lost. If both or neither potential outcomes are
+        available, it returns a "don't know" response (None). """
+        won_state = set(('won',))
+        possibles = set()
+        try:
+            for rating in Rating.lookup_for(profile_id)[rating]:
+                if 0 < rating.timestamp - started < 3600:
+                    possibles.add(rating.won_state)
+        except KeyError:
+            """ Thrown when there are no rating records matching that player's current rating. """
+            pass
+        if len(possibles) != 1: # we have a contradiction or no information
+            return None
+        return possibles == won_state
+
+    def determine_winner(self):
+        """ Determines which player won be assessing the combined information from both players.
+        Ideal case is one player knows it won and the other knows it lost. Else it just goes
+        with the one who knows. If neither knows or they disagree, it returns 0 meaning cannot determine. """
+        player_1_won = Match.player_won(self.player_id_1, self.rating_1, self.started)
+        player_2_won = Match.player_won(self.player_id_2, self.rating_2, self.started)
+        # Player 1 and player 2 either both won or both lost or we don't know either
+        if player_1_won == player_2_won:
+            return 0
+        # Player 1 won and/or player 2 lost
+        if player_1_won or player_2_won == False:
+            return 1
+        # Player 2 won and/or player 1 lost
+        if player_2_won or player_1_won == False:
+            return 2
+
+    def to_record(self):
+        """ Outputs self as record for analysis.
+        Note: "Player 1" and "Player 2" do not map to player_1 and player_2 in the match record. Unless it
+        is a mirror match. Instead, they indicate the player associated with the lowest and highest ordinal civ code.
+        Competition-code: {lowest ordinal civ code}-{highest ordinal civ code}-{map code}
+        Player 1 Rating: Rating of player with the lowest ordinal civ code
+        Player 2 Rating: Rating of player with the highest ordinal civ code
+        Rating difference: The difference between the rating of the winning player minus the rating of the
+                           losing player. It will be negative if a lower-rated player upsets a higher-rated player.
+        Winner: 1 or 2, depending on which player won
+        """
+        determined_winner = self.determine_winner()
+        if self.civ_1 > self.civ_2:
+            code = '{}-{}-{}'.format(self.civ_2, self.civ_1, self.map_type)
+            rating_1 = self.rating_2
+            rating_2 = self.rating_1
+            winner = determined_winner == 1 and 2 or 1
+        else:
+            code = '{}-{}-{}'.format(self.civ_1, self.civ_2, self.map_type)
+            rating_1 = self.rating_1
+            rating_2 = self.rating_2
+            winner = determined_winner
+        if determined_winner == 0:
+            winner = 0
+            score = 0
+        elif determined_winner == 1:
+            score = self.rating_1 - self.rating_2
+        else:
+            score = self.rating_2 - self.rating_1
+        return [code, rating_1, rating_2, score, winner,]
+
     def rating_for(self, profile_id):
         if str(profile_id) == self.player_id_1:
             return self.rating_1
@@ -41,12 +106,16 @@ class Match():
             self.winner = 2
         elif profile_id == self.player_id_2:
             self.winner = 1
-        
+        else:
+            self.winner = 0
+
     def mark_won(self, profile_id):
         if str(profile_id) == self.player_id_1:
             self.winner = 1
         elif str(profile_id) == self.player_id_2:
             self.winner = 2
+        else:
+            self.winner = 0
 
     @property
     def winner_id(self):
@@ -84,14 +153,6 @@ class Match():
         match.winner = int(row[9])
         return match
 
-    def elo(profile_id):
-        matches = Match.all_for(profile_id)
-        won = 0
-        for cnt, match in enumerate(matches):
-            if match.winner_id == profile_id:
-                won += 1
-            print(won, cnt - won, match.rating_for(profile_id))
-
     def all_for(profile_id):
         """ Returns all matches for a profile """
         data_file = Match.data_file_template.format(profile_id)
@@ -109,8 +170,8 @@ class Match():
 
     def all(include_duplicates=False):
         """ Returns all matches for all users, with duplicates removed """
-        data_file_pattern = re.compile('matches_for_[0-9]+\.csv')
-        data_dir = '{}/data'.format(ROOT_DIR)
+        data_file_pattern = re.compile(r'matches_for_[0-9]+\.csv$')
+        data_dir = pathlib.Path(Match.data_file_template.format('')).parent.absolute()
         matches = []
         match_ids = set()
         for filename in os.listdir(data_dir):
@@ -125,7 +186,7 @@ class Match():
                             except ValueError:
                                 pass
         return matches
-        
+
 class Rating():
     """Holds rating data from api
     example: "rating":1150,"num_wins":27,"num_losses":26,"streak":-4,"drops":0,"timestamp":1589316182"""
