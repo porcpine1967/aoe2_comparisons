@@ -20,5 +20,11 @@ Step two: What is the correlation between rating and likelihood of a win?
 
 In exploratory graphs, it appears that the relation between rating and likelihood of a win is linear. Statistical analysis (elo.calculations#correlation_and_regression) show an r score of .96 and a slope of .0011 for both model and verification data sets.  The figure below (elo.graphs#pct_win_by_rating) shows the percentage win for each 5th rating (for legibility) along with its confidence interval as data points, as well as the regression line.
 
+[[ elo/win_by_rating.png ]]
+
+As we can see from the graph, the confidence interval increases as the difference in rating increases. This is because the matchmaking algorithm attempts to match players of similar levels. The figure below shows the distribution of ratings, which is very like a power law distribution. Note: for legibility, only rating differences greater than 10 are shown.
+
+[[ elo/rating_distribution.png ]]
+
 Conclusion
 The AOE2 DE rating system strongly correlates win likelihood with rating in a linear fashion, with a roughly 1% greater chance of winning for every 10 rating points difference.
