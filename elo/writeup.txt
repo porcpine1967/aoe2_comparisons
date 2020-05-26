@@ -1,0 +1,24 @@
+Introduction
+Age of Empires II Definitive Edition (AOE2 DE) is a real-time strategy (RTS) game in which each player controls the economic and military activity of a "civilization" in competition (and possibly cooperation) with another player or group of players. In this paper, I will be looking only at one-on-one (1v1) matches in the "ranked" queue. After ten matches of online competition in this queue, a player is assigned a rating. This rating may change after any given match based on whether the player won and the player's rating compared to the other player's rating. The question this paper asks is whether (and if so, by how much) a user's relative rating affects the likelihood of victory.
+
+Methodology
+The website aoe2.net hosts an api from which anyone can download match, rating, and player data. Starting with all the players currently listed in the 1v1 ranked "leaderboard", I downloaded all of the match information and historical rating changes of each user and all the match and historical rating changes of each of that player's opponents. Match information does not include which player won the match, so I extrapolated this information from the historical rating changes data, which held this information. Matching this data required extrapolation as there is no key between one and the other.
+
+Data is incomplete, with some matches having rating data from only one player, and a very few matches had data that contradicted each other. The percentage of contradictory records is sufficiently small for me to feel confidence in even the data from only one player.
+
+Confirmed       : 503972 : 0.552
+One Player Only : 404968 : 0.443
+Contradicted    :   4261 : 0.005
+Total           : 913201 : 1.000
+
+Removing the contradictory records, I randomly divided the match record data into three buckets: 'model' (80%, n = 765184), 'test' (10%, n = 95587), and 'verification' (10%, n = 95630).
+
+Step one: Do superior ratings imply greater likelihood of win?
+Looking at the sample data, and removing all records in which ratings were equal (leaving 752281 records), I found that players with a superior rating won 54% of the matches (with .05% confidence interval of .001), which confirms that ratings do matter. (n.b.: The test and verification data sets also had 54% of wins given to the higher rated player.) The next question is how much?
+
+Step two: What is the correlation between rating and likelihood of a win?
+
+In exploratory graphs, it appears that the relation between rating and likelihood of a win is linear. Statistical analysis (elo.calculations#correlation_and_regression) show an r score of .96 and a slope of .0011 for both model and verification data sets.  The figure below (elo.graphs#pct_win_by_rating) shows the percentage win for each 5th rating (for legibility) along with its confidence interval as data points, as well as the regression line.
+
+Conclusion
+The AOE2 DE rating system strongly correlates win likelihood with rating in a linear fashion, with a roughly 1% greater chance of winning for every 10 rating points difference.

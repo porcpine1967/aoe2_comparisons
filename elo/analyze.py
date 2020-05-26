@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-""" Looks at the elo progression of 100 random players from 1v1 ranked in order to see if there are any patterns."""
+""" Functions for exploring rating data """
 from collections import defaultdict, Counter
 import csv
 import json
@@ -11,6 +11,8 @@ import sys
 
 import matplotlib.pyplot as plt
 import requests
+from scipy import stats
+from statsmodels.stats.proportion import proportion_confint
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
@@ -72,37 +74,6 @@ def download_data(users):
     for user in users:
         utils.download.matches(user.profile_id)
 
-def graph_sample():
-    ctr = Counter()
-    for report in MatchReport.all('test'):
-        ctr[report.civ_1] += 1
-        ctr[report.civ_2] += 1
-    x = []
-    y = []
-    for k, v in ctr.items():
-        x.append(k)
-        y.append(v)
-    plt.plot(x, y)
-    plt.show()
-
-def civ_details():
-    constants = utils.lookup.constants()
-    matchup_counter = Counter()
-    tot_ctr = 0
-    for match in Match.all():
-        tot_ctr += 1
-        matchup_code = '{}-{}-{}'.format(min(match.civ_1, match.civ_2), max(match.civ_1, match.civ_2), 1)
-        matchup_counter[matchup_code] += 1
-    same_ctr = 0
-    for c, v in matchup_counter.most_common():
-        c1, c2, m = [int(x) for x in c.split('-')]
-        if c1 != c2:
-            continue
-        print(constants['civ'][c1],constants['civ'][c2], v) #,constants['map_type'][m], v)
-        if c1 == c2:
-            same_ctr += v
-    print(same_ctr)
-
 def elo_as_determinant():
     diff_ctr = Counter()
     pos = 0
@@ -128,13 +99,6 @@ def elo_as_determinant():
     plt.scatter(x, y, s=3)
     plt.show()
 
-def map_details():
-    constants = utils.lookup.constants()
-    map_counter = Counter()
-    for match in Match.all():
-        map_counter[match.map_type] += 1
-    for m, v in map_counter.most_common():
-        print(constants['map_type'][m], v)
 def get_some_users(cnt):
     users = get_random_users(cnt)
     download_data(users)
@@ -144,9 +108,18 @@ def contradictions():
     match_info = defaultdict(lambda: [])
     matches = Match.all(True)
     for match in matches:
-        match_info[match.match_id].append(match.winner)
+        if match.winner:
+            match_info[match.match_id].append(match.winner)
     ctr = Counter()
     for match_id, winners in match_info.items():
+        if len(winners) < 1:
+            ctr['no info'] += 1
+        elif len(winners) == 1:
+            ctr['solo'] += 1
+        elif len(set(winners)) == 1:
+            ctr['confirmed'] += 1
+        else:
+            ctr['contradictory'] += 1            
         ctr['-'.join([str(x) for x in sorted(winners)])] += 1
     for k, cnt in ctr.most_common():
         print(k, cnt)
@@ -189,10 +162,148 @@ def old_determine(profile_id, row):
     elif possible_win_states == lost_state:
         print('{} lost'.format(profile_id))
 
-def run():
-    row = ['21258848', 1589298957, 86, 28, 982, '1372812', 4, 1017, '1135871', 2]
-    test_determine([str(x) for x in row])
-    for profile_id in (row[5], row[8]):
-        old_determine(profile_id, [str(x) for x in row])
+
+def ratings_hist():
+    ctr = Counter()
+    for report in MatchReport.all('all'):
+        for rating in (report.rating_1, report.rating_2):
+            if rating < 400:
+                ctr[400] += 1
+            elif rating < 500:
+                ctr[500] += 1
+            elif rating < 600:
+                ctr[600] += 1
+            elif rating < 700:
+                ctr[700] += 1
+            elif rating < 800:
+                ctr[800] += 1
+            elif rating < 900:
+                ctr[900] += 1
+            elif rating < 1000:
+                ctr[1000] += 1
+            elif rating < 1100:
+                ctr[1100] += 1
+            elif rating < 1200:
+                ctr[1200] += 1
+            elif rating < 1300:
+                ctr[1300] += 1
+            elif rating < 1400:
+                ctr[1400] += 1
+            elif rating < 1500:
+                ctr[1500] += 1
+            elif rating < 1600:
+                ctr[1600] += 1
+            elif rating < 1700:
+                ctr[1700] += 1
+            elif rating < 1800:
+                ctr[1800] += 1
+            elif rating < 1900:
+                ctr[1900] += 1
+            elif rating < 2000:
+                ctr[2000] += 1
+            elif rating < 2100:
+                ctr[2100] += 1
+            else:
+                ctr[2200] += 1
+    for k in sorted(ctr):
+        print('{:>5}: {:>8}'.format(k, ctr[k]))
+
+def err_by_count():
+    model_elo_dict = defaultdict(lambda: [])
+    for report in MatchReport.all('test'):
+        if report.score == 0:
+            continue
+        model_elo_dict[abs(report.score)].append(report.score)
+    total_err = {}
+    for score in sorted(model_elo_dict):
+        values = model_elo_dict[score]
+        total = float(len(values))
+        wins = len([i for i in values if i > 0])
+        cl, _ = proportion_confint(wins, total)
+        pct_win = wins / float(total)
+        err = pct_win - cl
+        try:
+            if total_err[total] != err:
+                print(total_err[total] - err, total)
+        except KeyError:
+            pass
+        total_err[total] = err
+    for total in sorted(total_err):
+        print('{:>3}: {:>2.2f}'.format(total, total_err[total]))
+
+def cnt_by_win_pct():
+    model_elo_dict = defaultdict(lambda: [])
+    for report in MatchReport.all('model'):
+        if report.score == 0:
+            continue
+        model_elo_dict[abs(report.score)].append(report.score)
+    for score in sorted(model_elo_dict):
+        values = model_elo_dict[score]
+        wins = len([i for i in values if i > 0])
+        total = len(values)
+        cl, _ = proportion_confint(wins, total)
+        pct_win = wins / float(total)
+        print('{:>4}: {:>5}: {:>.2f}: {:>.3f}'.format(score, total, pct_win))
+
+def likelihood_of_win():
+    wins = 0
+    matches = MatchReport.all('verification')
+    print(len(matches))
+    total = 0
+    for report in matches:
+        if report.score == 0:
+            continue
+        if report.score > 0:
+            wins += 1
+        total += 1
+    cl, _ = proportion_confint(wins, total)
+    pct_win = wins/float(total)
+    print(pct_win, total, pct_win - cl)
+    
+
+
+def nearest_20(num):
+    for i in range(20):
+        if not (num - i) % 20:
+            return num - i
+
+def pct_win_by_elo():
+    score_results_dict = defaultdict(lambda: [])
+    for report in MatchReport.all('model'):
+        score_results_dict[abs(report.score)].append(report.score)
+    slope_x = []
+    x2 = []
+    y = []
+    y2 = []
+    for score in sorted(score_results_dict):
+        values = score_results_dict[score]
+        
+        total = len(values)
+        if total < 3:
+            continue
+        if score == 0:
+            pct_win = .5
+        else:
+            wins = len([i for i in values if i > 0])
+            cl, _ = proportion_confint(wins, total)
+            pct_win = wins / float(total)
+        if True: #wins < total and pct_win - cl < .05:
+            for _ in range(total):
+                x2.append(score)
+                y2.append(pct_win)
+            slope_x.append(score)
+            y.append(pct_win)
+    print(len(slope_x))
+    slope, intercept, r_value, p_value, std_err = stats.linregress(slope_x,y)
+    slope2, intercept2, r_value, p_value, std_err = stats.linregress(x2,y2)
+    print(intercept, slope)
+    print(intercept2, slope2)
+    z = [(slope*i + intercept) for i in slope_x]
+    z2 = [(slope2*i + intercept2) for i in x2]
+    
+    plt.plot(slope_x, z)
+    plt.plot(x2, z2)
+    plt.show()
+
 if __name__ == '__main__':
-    graph_sample()
+    likelihood_of_win()
