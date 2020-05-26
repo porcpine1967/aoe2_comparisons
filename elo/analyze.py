@@ -11,6 +11,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import requests
+import numpy as np
 from scipy import stats
 from statsmodels.stats.proportion import proportion_confint
 
@@ -119,7 +120,7 @@ def contradictions():
         elif len(set(winners)) == 1:
             ctr['confirmed'] += 1
         else:
-            ctr['contradictory'] += 1            
+            ctr['contradictory'] += 1
         ctr['-'.join([str(x) for x in sorted(winners)])] += 1
     for k, cnt in ctr.most_common():
         print(k, cnt)
@@ -259,7 +260,7 @@ def likelihood_of_win():
     cl, _ = proportion_confint(wins, total)
     pct_win = wins/float(total)
     print(pct_win, total, pct_win - cl)
-    
+
 
 
 def nearest_20(num):
@@ -277,7 +278,7 @@ def pct_win_by_elo():
     y2 = []
     for score in sorted(score_results_dict):
         values = score_results_dict[score]
-        
+
         total = len(values)
         if total < 3:
             continue
@@ -300,10 +301,69 @@ def pct_win_by_elo():
     print(intercept2, slope2)
     z = [(slope*i + intercept) for i in slope_x]
     z2 = [(slope2*i + intercept2) for i in x2]
-    
+
     plt.plot(slope_x, z)
     plt.plot(x2, z2)
     plt.show()
 
+def rating_diff_by_rating_bucket():
+    """ See how different the differences are based on rating bucket (68/95 rule) """
+    ratings_raw = []
+    matches = MatchReport.all('test')
+    for report in matches:
+        ratings_raw.append(report.rating_1)
+        ratings_raw.append(report.rating_2)
+    ratings = sorted(ratings_raw)
+    total_cnt = len(ratings)
+
+    # edges = [ratings[int(.025*total_cnt)] - 1,
+    #              ratings[int(.16*total_cnt)] - 1,
+    #              int(np.median(ratings)) - 1,
+    #              ratings[int(.84*total_cnt)] - 1,
+    #              ratings[int(.975*total_cnt)] -1]
+    edges = [np.quantile(ratings, .1 + .1*i) for i in range(9)]
+    edge_counters = defaultdict(lambda: Counter())
+    for report in matches:
+        found = False
+        for edge in edges:
+            if report.rating_1 < edge:
+                found = True
+                edge_counters[edge][abs(report.score)] += 1
+                break
+        if not found:
+            edge_counters['big'][abs(report.score)] += 1
+        found = False
+        for edge in edges:
+            if report.rating_2 < edge:
+                found = True
+                edge_counters[edge][abs(report.score)] += 1
+                break
+        if not found:
+            edge_counters['big'][abs(report.score)] += 1
+    fig, axs = plt.subplots(nrows=len(edges) + 1, ncols=1, sharex=True)
+    hold = 0
+    for idx, edge in enumerate(edges):
+        ctr = edge_counters[edge]
+        ax = axs[idx]
+        plot_dist(ax, ctr, '{} - {}'.format(hold, edge - 1))
+        hold = edge
+    
+    ctr = edge_counters['big']
+    ax = axs[-1]
+    plot_dist(ax, ctr, '{}+'.format(hold))
+    fig.tight_layout(pad=0.3)
+    plt.show()
+
+def plot_dist(ax, ctr, title):
+    ax.set_title(title)
+    xs = []
+    ys = []
+    for x in sorted(ctr):
+        if ctr[x] < 3:
+            continue
+        xs.append(x)
+        ys.append(ctr[x])
+    ax.plot(xs, ys)
+    
 if __name__ == '__main__':
-    likelihood_of_win()
+    rating_diff_by_rating_bucket()
