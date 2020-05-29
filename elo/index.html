@@ -1,0 +1,56 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Impact of Rating on Win Percentage in Age of Empires II Definitive Edition</title>
+  <meta name="description" content="The HTML5 Herald">
+  <meta name="author" content="porcpine1967">
+  <link rel="stylesheet" href="../styles/normalize.css">
+  <style>
+      body {margin: 5em}
+      th, td { border: 1px black solid; padding: 5px }
+      td { text-align: right }
+  </style>
+
+</head>
+<body>
+<h1>Impact of Rating on Win Percentage in Age of Empires II Definitive Edition</h1>
+<h2>Introduction</h2>
+<p>Age of Empires II Definitive Edition (AOE2 DE) is a real-time strategy (RTS) game in which each player controls the economic and military activity of a "civilization" in competition (and possibly cooperation) with another player or group of players. In this paper, I will be looking only at one-on-one (1v1) matches in the "ranked" queue. After ten matches of online competition in this queue, a player is assigned a rating. This rating may change after any given match based on whether the player won and the player's rating compared to the other player's rating. The question this paper asks is whether (and if so, by how much) a user's relative rating affects the likelihood of victory.</p>
+
+<p>Note: the code for downloading the data, all subsequent data manipulations and statistical calclations, and map and table generation is available at <a href="https://github.com/porcpine1967/aoe2_comparisons">the github repository hosting this page</a>.
+<h2>Methodology</h2>
+<p>The website <a href="https://aoe2.net/">AoE2.net</a> hosts an <a href="https://aoe2.net/#api">api</a> from which anyone can download match, rating, and player data. Starting with all the players listed in the <a href="https://aoe2.net/#aoe2de-leaderboard-rm-1v1">1v1 ranked "leaderboard"</a> on 21 May 2020, I downloaded all of the match information and historical rating changes of each user and all the match and historical rating changes of each of that player's opponents recursively until no new players were added. Match information does not include which player won the match, so I extrapolated this information from the historical rating changes data, which holds this information (matching this data required extrapolation as there is no key between one and the other -- see <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/utils/models.py#L109">utils.models.Match#determine_winner</a> for the matching algorithm).</p>
+
+<p>Data is incomplete, with some matches having rating data from only one player, and a very few matches had data that contradicted each other. The percentage of contradictory records (generated <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/analyze.py#L107">thus</a>) is sufficiently small for me to feel confidence in even the data from only one player.</p>
+
+<table>
+<tr><th></th><th>Number of Matches</th><th>Proportion of Matches</th></tr>
+<tr><td>Confirmed</td><td>503,972</td><td>0.552</td></tr>
+<tr><td>One Player Only</td><td>404,968</td><td>0.443</td></tr>
+<tr><td>Contradicted</td><td>4,261</td><td>0.005</td></tr>
+<tr><td>Total</td><td>913,201</td><td>1.000</td></tr>
+</table>
+
+<p>Removing the contradictory records, I randomly divided the match record data into three buckets: 'model' (80%, n = 765184), 'test' (10%, n = 95587), and 'verification' (10%, n = 95630).</p>
+
+<h3>Step one: Do superior ratings imply greater likelihood of win?</h3>
+<p>Looking at the sample data, and removing all records in which ratings were equal (hence n=752,281), I found that players with a superior rating won 54% of the matches (with 5% confidence interval of .001), which confirms that ratings do matter. (n.b.: The test and verification data sets also had 54% of wins given to the higher rated player.) The next question is how much?</p>
+
+<h3>Step two: What is the correlation between rating and likelihood of a win?</h3>
+
+<p>In exploratory graphs, it appears that the relation between rating and likelihood of a win is linear. <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/calculations.py#L40">Statistical analysis</a> reveals an r score of .96 and a slope of .0011 for both model and verification data sets.  The figure below (<b>Percentage win by rating difference</b> generated <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/graphs.py#L23">thus</a>) shows the percentage win for rating difference (only every fifth for legibility) along with its confidence interval as data points, as well as the regression line.</p>
+
+<img src="../graphs/win_by_rating.png"/>
+
+<p>As we can see from the graph, the confidence interval increases as the difference in rating increases. This is because the matchmaking algorithm attempts to match players of similar levels. The figure below (<b>Number of matches per rating difference</b> generated <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/graphs.py#L74">thus</a>) shows the distribution of ratings differences, which is very like a power law distribution. Note: for legibility, only rating differences greater than 10 are shown.</p>
+
+<img src="../graphs/rating_distribution.png"/>
+
+<h2>Conclusion</h2>
+<p>The AOE2 DE rating system strongly correlates win likelihood with rating in a linear fashion, with a roughly 1.1% greater chance of winning for every 10 rating points difference.</p>
+
+</body>
+</html>
