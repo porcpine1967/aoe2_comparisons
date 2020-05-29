@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
 
-  <title>Impact of Rating on Win Percentage in Age of Empires II Definitive Edition</title>
+  <title>Impact of Rating Difference on Win Percentage in Age of Empires II Definitive Edition</title>
   <meta name="description" content="The HTML5 Herald">
   <meta name="author" content="porcpine1967">
   <link rel="stylesheet" href="../styles/normalize.css">
@@ -16,7 +16,7 @@
 
 </head>
 <body>
-<h1>Impact of Rating on Win Percentage in Age of Empires II Definitive Edition</h1>
+<h1>Impact of Rating Difference on Win Percentage in Age of Empires II Definitive Edition</h1>
 <h2>Introduction</h2>
 <p>Age of Empires II Definitive Edition (AOE2 DE) is a real-time strategy (RTS) game in which each player controls the economic and military activity of a "civilization" in competition (and possibly cooperation) with another player or group of players. In this paper, I will be looking only at one-on-one (1v1) matches in the "ranked" queue. After ten matches of online competition in this queue, a player is assigned a rating. This rating may change after any given match based on whether the player won and the player's rating compared to the other player's rating. The question this paper asks is whether (and if so, by how much) a user's relative rating affects the likelihood of victory.</p>
 
@@ -39,9 +39,9 @@
 <h3>Step one: Do superior ratings imply greater likelihood of win?</h3>
 <p>Looking at the sample data, and removing all records in which ratings were equal (hence n = 752,281), I found that players with a superior rating won 54% of the matches (with 5% confidence interval of .001), which confirms that ratings do matter. (n.b.: The test and verification data sets also had 54% of wins given to the higher rated player.) The next question is how much?</p>
 
-<h3>Step two: What is the correlation between rating and likelihood of a win?</h3>
+<h3>Step two: What is the correlation between rating difference and likelihood of a win?</h3>
 
-<p>In exploratory graphs, it appears that the relation between rating and likelihood of a win is linear. <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/calculations.py#L40">Statistical analysis</a> reveals an r score of .96 and a slope of .0011 for both model and verification data sets.  The figure below (<b>Percentage win by rating difference</b> generated <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/graphs.py#L23">thus</a>) shows the percentage win for rating difference (only every fifth for legibility) along with its confidence interval as data points, as well as the regression line.</p>
+<p>In exploratory graphs, it appears that the relation between difference in rating and likelihood of a win is linear. <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/calculations.py#L40">Statistical analysis</a> reveals an r score of .96 and a slope of .0011 for both model and verification data sets.  The figure below (<b>Percentage win by rating difference</b> generated <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/ec55a408f9aa73c80b2120aff6a2ab1a94527bfc/elo/graphs.py#L23">thus</a>) shows the percentage win for rating difference (only every fifth for legibility) along with its confidence interval as data points, as well as the regression line.</p>
 
 <img src="../graphs/win_by_rating.png"/>
 
@@ -50,7 +50,7 @@
 <img src="../graphs/rating_distribution.png"/>
 
 <h2>Conclusion</h2>
-<p>The AOE2 DE rating system strongly correlates win likelihood with rating in a linear fashion, with a roughly 1.1% greater chance of winning for every 10 rating points difference.</p>
+<p>The AOE2 DE rating system strongly correlates win likelihood with rating difference in a linear fashion, with a roughly 1.1% greater chance of winning for every 10 rating points difference.</p>
 
 </body>
 </html>
