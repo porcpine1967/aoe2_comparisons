@@ -2,6 +2,7 @@
 
 """ Generates graphs for use in elo/writeup.txt """
 from collections import defaultdict, Counter
+from math import log
 import pathlib
 
 import matplotlib.pyplot as plt
@@ -71,23 +72,31 @@ def pct_win_by_rating():
     ax.legend(handles, labels, loc='lower right')
     plt.savefig('{}/win_by_rating.png'.format(GRAPH_DIR), dpi=180)
 
-def ratings_distribution():
+def ratings_distributions():
     ctr = Counter()
     for report in MatchReport.all('model'):
         ctr[abs(report.score)] += 1
     xs = []
     ys = []
-    for x in sorted(ctr):
+    log_ys = []
+    for x in sorted(ctr)[1:]:
         if ctr[x] < 10:
             continue
         xs.append(x)
         ys.append(ctr[x])
-    plt.title('Number of matches per rating difference')
+        log_ys.append(log(ctr[x]))
+    plt.figure(1)
+    plt.title('Rating difference per number of matches')
     plt.xlabel('Difference in ratings')
     plt.ylabel('Number of matches')
     plt.plot(xs, ys)
     plt.savefig('{}/rating_distribution.png'.format(GRAPH_DIR), dpi=180)
-
+    plt.figure(2)
+    plt.title('Log of rating difference per number of matches')
+    plt.xlabel('Difference in ratings')
+    plt.ylabel('Log of number of matches')
+    plt.plot(xs, log_ys)
+    plt.savefig('{}/log_rating_distribution.png'.format(GRAPH_DIR), dpi=180)
 
 if __name__ == '__main__':
-    ratings_distribution()
+    ratings_distributions()

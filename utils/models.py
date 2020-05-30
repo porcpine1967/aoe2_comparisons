@@ -14,7 +14,6 @@ from utils.lookup import constants
 
 LOOKUP = constants()
 
-
 class MatchReport():
     """ Holds match information from both players' perspective (loaded from Match records). """
     data_file_template = '{}/data/match_{{}}_data.csv'.format(ROOT_DIR)

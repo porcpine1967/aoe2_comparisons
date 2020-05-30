@@ -99,7 +99,7 @@ def mean_quantiles(civs, split):
         return []
     means = [civ.mean for civ in civs]
     pct = 1.0/split
-    return [np.quantile(means, pct + pct*i) for i in range(split - 1)]    
+    return [np.quantile(means, pct + pct*i) for i in range(split - 1)]
 
 def graph_civ_by_map(data_set_type, map_type, split):
     constants = utils.lookup.constants()
@@ -134,7 +134,6 @@ def plot_dist(ax, civs, title):
     ax.errorbar(x, y, yerr=yerr, fmt='_')
     ax.set_xticklabels(x, rotation="vertical")
 
-
 class MatchExperience():
     """ What happened in a match from a single player's point of view."""
     def __init__(self, rating, civ, enemy_civ, score, won):
@@ -156,7 +155,7 @@ def civs_by_snapshots(data_set_type, map_type, snapshot_count):
         experiences_raw.append(MatchExperience(match.rating_1, match.civ_1, match.civ_2, match.score, match.winner == 1))
         experiences_raw.append(MatchExperience(match.rating_2, match.civ_2, match.civ_1, match.score, match.winner == 2))
     experiences = sorted(experiences_raw, key=lambda x: x.rating)
-    
+
     # Each match has two players, each of which will be counted somewhere
     total_records = len(experiences)
     # we want to advance a third of a snapshot for each record set, so...
@@ -213,7 +212,7 @@ def flourish(data_set_type, map_type, split):
         writer = csv.writer(f)
         writer.writerows(rows)
     print(rows)
-    
+
 def civ_by_quantiles(data_set_type, map_type, split):
     quantile_civs = []
     hold = 0
@@ -370,7 +369,6 @@ def winning_clusters(data_set_type, map_type):
 def wtvr():
     reports = MatchReport.by_map_and_rating('all', 29, 1200, 100000)
     victory_chains(reports)
-
 
 if __name__ == '__main__':
     winning_clusters('all', 9)

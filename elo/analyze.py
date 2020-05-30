@@ -163,7 +163,6 @@ def old_determine(profile_id, row):
     elif possible_win_states == lost_state:
         print('{} lost'.format(profile_id))
 
-
 def ratings_hist():
     ctr = Counter()
     for report in MatchReport.all('all'):
@@ -261,8 +260,6 @@ def likelihood_of_win():
     pct_win = wins/float(total)
     print(pct_win, total, pct_win - cl)
 
-
-
 def nearest_20(num):
     for i in range(20):
         if not (num - i) % 20:
@@ -347,7 +344,7 @@ def rating_diff_by_rating_bucket():
         ax = axs[idx]
         plot_dist(ax, ctr, '{} - {}'.format(hold, edge - 1))
         hold = edge
-    
+
     ctr = edge_counters['big']
     ax = axs[-1]
     plot_dist(ax, ctr, '{}+'.format(hold))
@@ -364,6 +361,6 @@ def plot_dist(ax, ctr, title):
         xs.append(x)
         ys.append(ctr[x])
     ax.plot(xs, ys)
-    
+
 if __name__ == '__main__':
     rating_diff_by_rating_bucket()

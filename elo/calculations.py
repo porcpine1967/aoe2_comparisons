@@ -4,6 +4,7 @@
 from collections import defaultdict, Counter
 import csv
 import json
+from math import log
 import os
 import pathlib
 import random
@@ -63,6 +64,22 @@ def correlation_and_regression(data_set_type):
     slope, intercept, r_value, _, _ = stats.linregress(x, y)
     print(data_set_type)
     print('  Intercept: {:.3f}, Slope: {:.4f}, R value: {:.3f}'.format(intercept, slope, r_value))
+
+def ratings_correlation_and_regression(data_set_type):
+    ctr = Counter()
+    for report in MatchReport.all('model'):
+        ctr[abs(report.score)] += 1
+    xs = []
+    log_ys = []
+    for x in sorted(ctr)[1:]:
+        if ctr[x] < 10:
+            continue
+        xs.append(x)
+        log_ys.append(log(ctr[x]))
+    slope, intercept, r_value, _, _ = stats.linregress(xs, log_ys)
+    print(data_set_type)
+    print('  Intercept: {:.3f}, Slope: {:.4f}, R value: {:.3f}'.format(intercept, slope, r_value))
+
 if __name__ == '__main__':
     for data_set_type in ('model', 'verification',):
-        correlation_and_regression(data_set_type)
+        ratings_correlation_and_regression(data_set_type)
