@@ -81,6 +81,7 @@ def matches(profile_id, update=False):
         current_rating = match.rating_for(profile_id)
         if not current_rating:
             continue
+        matches.append(match)
     with open(data_file, 'w') as f:
         writer = csv.writer(f)
         writer.writerow(Match.header)

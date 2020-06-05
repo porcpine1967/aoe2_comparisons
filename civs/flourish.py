@@ -8,7 +8,7 @@ import pathlib
 import numpy as np
 from statsmodels.stats.proportion import proportion_confint
 
-from utils.models import MatchReport, Player
+from utils.models import MatchReport, Player, CachedPlayer
 from utils.lookup import Lookup
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
@@ -216,59 +216,55 @@ def map_popularity(data_set_type):
             m[map_type] += 1
     return m
 
-def civ_popularity_by_rating(matches, graph_name):
-    print(graph_name)
-    mincount = 5
-    all_players = Player.player_values(matches)
-    players = [p for p in all_players if p.best_rating(mincount)]
-    print(len(players))
-    split = max(int(len(players)/1000), 5)
-    ratings = [p.best_rating(mincount) for p in players]
-    pct = 1.0/split
-    edges = [int(np.quantile(ratings, pct + pct*i)) for i in range(split - 1)]
+def civ_popularity_by_rating(players, map_name):
+    print(map_name)
+    edges = [i for i in range(650, 1651, 50)]
     edges.append(10000)
     start = 0
     counters = []
     headers = []
+    edge_totals = []
     for edge in edges:
+        total = 0.0
         if edge == edges[-1]:
             headers.append('{}+'.format(start + 1))
         else:
             headers.append('{} - {}'.format(start + 1, edge))
         civ_ctr = Counter()
         counters.append(civ_ctr)
-        snapshot_players = [p for p in players if start < p.best_rating(mincount) <= edge]
+        snapshot_players = [p for p in players if start < p.best_rating <= edge]
         for player in snapshot_players:
-            player.add_civ_percentages(civ_ctr, start, edge)
+            if player.add_civ_percentages(civ_ctr, map_name, start, edge):
+                total += 1
+        edge_totals.append(total)
         start = edge
     row_header = ['Civilization', 'Category', 'Image'] + headers
     rows = [row_header]
     for civ_name, civ_info in CIVILIZATIONS.items():
         row = [civ_name, civ_info['category'], civ_info['image'],]
-        for civ_ctr in counters:
+        for idx, civ_ctr in enumerate(counters):
             row.append(civ_ctr[civ_name])
         rows.append(row)
-    with open('{}/flourish_{}_popularity.csv'.format(GRAPH_DIR,graph_name), 'w') as f:
+    with open('{}/flourish_{}_popularity.csv'.format(GRAPH_DIR, map_name.lower()), 'w') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
 def civ_popularity_by_map(data_set_type):
     """ Writes csv for civ popularities by ratings snapshot for every map type."""
-    matches = MatchReport.all(data_set_type)
+    players = CachedPlayer.rated_players(data_set_type)
     lookup = Lookup()
+    civ_popularity_by_rating(players, 'all')
+    return
     for map_name, count in map_popularity(data_set_type).most_common():
         if count < 1100:
             continue
         print(map_name, count)
-        map_matches = [match for match in matches if match.map == map_name]
-        civ_popularity_by_rating(map_matches, map_name.lower())
+        civ_popularity_by_rating(players, map_name)
+        break
 
 def map_popularity_by_rating(players, mincount):
     print(len(players))
-    split = max(int(len(players)/1000), 5)
-    ratings = [p.best_rating(mincount) for p in players]
-    pct = 1.0/split
-    edges = [int(np.quantile(ratings, pct + pct*i)) for i in range(split - 1)]
+    edges = [i for i in range(650, 1651, 50)]
     edges.append(10000)
     start = 0
     counters = []
@@ -280,7 +276,7 @@ def map_popularity_by_rating(players, mincount):
             headers.append('{} - {}'.format(start + 1, edge))
         map_ctr = Counter()
         counters.append(map_ctr)
-        snapshot_players = [p for p in players if start < p.best_rating(mincount) <= edge]
+        snapshot_players = [p for p in players if start < p.best_rating <= edge]
         for player in snapshot_players:
             player.add_map_percentages(map_ctr, start, edge)
         start = edge
@@ -289,7 +285,7 @@ def map_popularity_by_rating(players, mincount):
     for map_name, map_info in MAPS.items():
         row = [map_name, map_info['category'], map_info['image'],]
         for map_ctr in counters:
-            row.append(map_ctr[map_name])
+            row.append(100*map_ctr[map_name]/float(sum([v for v in map_ctr.values()])))
         print(sum(row[3:]))
         rows.append(row)
     with open('{}/flourish_map_popularity.csv'.format(GRAPH_DIR), 'w') as f:
@@ -297,7 +293,5 @@ def map_popularity_by_rating(players, mincount):
         writer.writerows(rows)
 
 if __name__ == '__main__':
-    matches = MatchReport.all('all')
-    mincount = 5
-    map_popularity_by_rating(Player.rated_players(matches, mincount), mincount)
-
+    data_set_type = 'model'
+    civ_popularity_by_map(data_set_type)

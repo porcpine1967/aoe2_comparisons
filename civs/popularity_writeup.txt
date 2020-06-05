@@ -1,0 +1,10 @@
+Introduction
+Age of Empires II Definitive Edition (AOE2 DE) is a real-time strategy (RTS) game in which each player controls the economic and military activity of a "civilization" in competition (and possibly cooperation) with another player or group of players. Each of these competitions take place on one of a limited number of map types, and each map type encourages certain strategies over others. In this paper, I will be looking at the popularity of the various civilizations in one-on-one (1v1) matches in the "ranked" queue for each map and overall, segmented by ranking.
+
+Methodology
+The website aoe2.net hosts an api from which anyone can download match, rating, and player data. Starting with all the players currently listed in the 1v1 ranked "leaderboard", I downloaded all of the match information and historical rating changes of each user and all the match and historical rating changes of each of that player's opponents recursively.
+
+AOE2 DE uses the elo rating system, and each player's rating changes with every game. Thus, in segmenting popularity by player rating, a player could have games at a rating in more than one segment. To determine the most appropriate rating segment for a user, I choose the median value from the group of five ordered ratings with the lowest standard deviation. In case of a tie in the standard deviation, I choose the group with higher ratings.
+
+After finding the most appropriate rating for all players, I segment the players into buckets based on these ratings. To avoid overcounting the favorites of those who play often, each player only gets 1 "point" to add to the overall score. However, I segment this point among all the matches the user has played when the player had a rating within the bucket parameters. For example, if a players most appropriate rating is in a bucket with ratings from 1000 to 1100, and this player played four matches when rated between those two points, and the civilizations chosen were Franks (twice), Celts, and Huns, Franks would add .5 points to its popularity, Celts would add .25 points, and Huns would also add .25 points.
+

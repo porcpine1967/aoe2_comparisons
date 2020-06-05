@@ -17,7 +17,7 @@ from statsmodels.stats.proportion import proportion_confint
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
-from utils.models import Match, Rating, User, MatchReport, Player
+from utils.models import Match, Rating, User, MatchReport, Player, PlayerRating
 import utils.download
 import utils.lookup
 
@@ -381,6 +381,40 @@ def maps_per_player(matches):
         mctr[len(set(pms))] += 1
     for k in sorted(mctr):
         print('{:>3}: {:>6}'.format(k, mctr[k]))
+def bucket_edges(rating):
+    for i in range(rating - 100, rating):
+        if not i % 50:
+            return i, i + 100, i + 50, i + 150
+def min_max_rating_per_map(data_set_type):
+    matches = MatchReport.all(data_set_type)
+    map_data = defaultdict(lambda: Counter())
+    rating_lookup = PlayerRating.ratings_for(data_set_type)
+    players = [p for p in Player.player_values(matches) if p.player_id in rating_lookup]
+    for player in players:
+        bottom_1, top_1, bottom_2, top_2 = bucket_edges(rating_lookup[player.player_id])
+        for match in player.matches:
+            if match.player_1 == player.player_id:
+                if bottom_1 < match.rating_1 <= top_1:
+                    map_data[match.map][bottom_2] += 1
+                if bottom_2 < match.rating_1 <= top_2:
+                    map_data[match.map][bottom_2] += 1
+            elif match.player_2 == player.player_id:
+                if bottom_1 < match.rating_2 <= top_1:
+                    map_data[match.map][bottom_2] += 1
+                if bottom_2 < match.rating_2 <= top_2:
+                    map_data[match.map][bottom_2] += 1
+    for map_name, counter in map_data.items():
+        bottom = None
+        top = None
+        for k in sorted(counter):
+            if counter[k] > 99:
+                if not bottom:
+                    bottom = '{:>5}: ({:5})'.format(k, counter[k])
+                top = '{:>5}: ({:5})'.format(k, counter[k])
+        print('{:18}: {} - {}'.format(map_name, bottom, top))
 
+    
 if __name__ == '__main__':
-    maps_per_player(MatchReport.all('all'))
+    min_max_rating_per_map('model')
+    # for i in range(188, 304):
+    #     print('{:>3}: {:>3}-{:>3}, {:>3}-{:>3}'.format(i, *bucket_edges(i)))

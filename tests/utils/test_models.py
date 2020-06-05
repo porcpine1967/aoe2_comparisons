@@ -18,7 +18,7 @@ def set_model_data_file_templates():
 
 # Match
 def test_match_to_from_csv():
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
+    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', '8276',]
     match = utils.models.Match.from_csv(match_row)
     assert match_row == [str(x) for x in match.to_csv]
 

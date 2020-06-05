@@ -52,17 +52,18 @@ class Player:
         self._best_stdevs[key] = best_std # cache the calculation
         return best
 
-    def add_civ_percentages(self, ctr, start, edge):
+    def add_civ_percentages(self, ctr, map_name, start, edge):
         """ Proportionally adds civs within range to ctr. """
         civ_ctr = Counter()
         for m in self.matches:
-            if m.player_1 == self.player_id and start < m.rating_1 <= edge:
+            if m.player_1 == self.player_id and start < m.rating_1 <= edge and (map_name == 'all' or m.map == map_name):
                 civ_ctr[m.civ_1] += 1
-            elif m.player_2 == self.player_id and start < m.rating_2 <= edge:
+            elif m.player_2 == self.player_id and start < m.rating_2 <= edge and (map_name == 'all' or m.map == map_name):
                 civ_ctr[m.civ_2] += 1
         total = float(sum(civ_ctr.values()))
         for civ, count in civ_ctr.items():
             ctr[civ] += count/total
+        return bool(civ_ctr)
 
     def add_map_percentages(self, ctr, start, edge):
         """ Proportionally adds maps within range to ctr. """
@@ -158,8 +159,8 @@ class MatchReport():
         self.rating_2 = int(row[2])
         self.score = int(row[3])
         self.winner = int(row[4])
-        self.player_1 = int(row[5])
-        self.player_2 = int(row[6])
+        self.player_1 = str(row[5])
+        self.player_2 = str(row[6])
         self.timestamp = int(row[7])
         c1, c2, m = self.code.split('-')
         self.civ_1 = LOOKUP.civ_name(c1)
@@ -248,6 +249,7 @@ class Match():
             self.player_id_2 = str(data['players'][1]['profile_id'])
             self.civ_2 = data['players'][1]['civ']
             self.rating_2 = data['players'][1]['rating']
+            self.version = data['version']
             self.winner = 0
         except IndexError:
             print(json.dumps(data))
@@ -365,13 +367,17 @@ class Match():
     @property
     def to_csv(self):
         return [ self.match_id, self.started, self.map_type, self.civ_1, self.rating_1, self.player_id_1,
-                 self.civ_2, self.rating_2, self.player_id_2, self.winner, ]
+                 self.civ_2, self.rating_2, self.player_id_2, self.winner, self.version]
 
     @property
     def recordable(self):
         return self.rating_1 and self.rating_2
 
     def from_csv(row):
+        if len(row) > 10:
+            version = row[10]
+        else:
+            version = None
         match_data = {
             'match_id': row[0],
             'started': int(row[1]),
@@ -380,6 +386,7 @@ class Match():
                 { 'civ': int(row[3]), 'rating': int(row[4]), 'profile_id': row[5], },
                 { 'civ': int(row[6]), 'rating': int(row[7]), 'profile_id': row[8], },
                 ],
+            'version': version,
             }
         match = Match(match_data)
         match.winner = int(row[9])
@@ -500,5 +507,37 @@ class User():
                     pass
         return users
 
+class PlayerRating:
+    """ Caches last calculated best rating for players. """
+    data_file_template = '{}/data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)    
+    def ratings_for(data_set_type, mincount=5, update=False):
+        data_file = PlayerRating.data_file_template.format(data_set_type, mincount)
+        if update or not os.path.exists(data_file):
+            rows = []
+            for player in Player.rated_players(MatchReport.all(data_set_type), mincount):
+                rows.append([player.player_id, player.best_rating(mincount),])
+            with open(data_file, 'w') as f:
+                csv.writer(f).writerows(rows)
+        ratings = {}
+        with open(data_file) as f:
+            reader = csv.reader(f)
+            for row in reader:
+                ratings[row[0]] = int(row[1])
+        return ratings
+
+class CachedPlayer(Player):
+    def __init__(self, player_id, matches, best_rating):
+        self.player_id = player_id
+        self.matches = matches
+        self.best_rating = best_rating
+
+    def rated_players(data_set_type, mincount=5):
+        ratings = PlayerRating.ratings_for(data_set_type, mincount)
+        players = []
+        for player in Player.player_values(MatchReport.all(data_set_type)):
+            if player.player_id in ratings:
+                players.append(CachedPlayer(player.player_id, player.matches, ratings[player.player_id]))
+        return players
+
 if __name__ == '__main__':
-    print(len(Match.all()))
+    print(PlayerRating.ratings_for('model', 5))
