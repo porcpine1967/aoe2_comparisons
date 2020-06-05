@@ -39,14 +39,15 @@ def likelihood_of_win_if_higher_rank(data_set_type):
     print('{:>7} records out of {:>7} total, win pct: {:.3f}, ci: {:.3f}'.format(total, all_match_count, pct_win, pct_win - cl))
 
 def correlation_and_regression(data_set_type):
-    matches = MatchReport.all(data_set_type)
+    matches = MatchReport.by_rating(data_set_type, 0, 10000)
+    print(len(matches))
     score_results_dict = defaultdict(lambda: [])
     for report in MatchReport.all('model'):
         score_results_dict[abs(report.score)].append(report.score)
     # For deterimining linear regression. Note: initialized to ensure
     # that the intercept is at .5
-    x = [0 for _ in range(100*len(matches))]
-    y = [.5 for _ in range(100*len(matches))]
+    x = []#0 for _ in range(100*len(matches))]
+    y = []#.5 for _ in range(100*len(matches))]
     for score in sorted(score_results_dict):
         values = score_results_dict[score]
         total = len(values)
@@ -61,9 +62,9 @@ def correlation_and_regression(data_set_type):
             for _ in range(total):
                 x.append(score)
                 y.append(pct_win)
-    slope, intercept, r_value, _, _ = stats.linregress(x, y)
+    slope, intercept, r_value, p_value, stderr = stats.linregress(x, y)
     print(data_set_type)
-    print('  Intercept: {:.3f}, Slope: {:.4f}, R value: {:.3f}'.format(intercept, slope, r_value))
+    print('  Intercept: {:.3f}, Slope: {:.4f}, R value: {:.3f}, p value: {}, Std Err: {}'.format(intercept, slope, r_value, p_value, stderr))
 
 def ratings_correlation_and_regression(data_set_type):
     ctr = Counter()
@@ -82,4 +83,4 @@ def ratings_correlation_and_regression(data_set_type):
 
 if __name__ == '__main__':
     for data_set_type in ('model', 'verification',):
-        ratings_correlation_and_regression(data_set_type)
+        correlation_and_regression(data_set_type)

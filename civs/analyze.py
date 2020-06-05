@@ -17,7 +17,7 @@ from statsmodels.stats.proportion import proportion_confint
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
-from utils.models import Match, Rating, User, MatchReport
+from utils.models import Match, Rating, User, MatchReport, Player
 import utils.download
 import utils.lookup
 
@@ -305,10 +305,14 @@ def victory_chains(reports):
             print(reciprocal_check(civ.name, civ.name, [], [], ccs))
         except RuntimeError as e:
             print(e)
+
 def map_popularity(data_set_type):
+    matches = MatchReport.all(data_set_type)
+    players = Player.player_values(matches)
     m = Counter()
-    for report in MatchReport.all(data_set_type):
-        m[report.map] += 1
+    for player in players:
+        for map_type in player.maps:
+            m[map_type] += 1
     for k, v in m.most_common():
         print('{:>14}: {:>7}'.format(k, v))
 
@@ -370,5 +374,13 @@ def wtvr():
     reports = MatchReport.by_map_and_rating('all', 29, 1200, 100000)
     victory_chains(reports)
 
+def maps_per_player(matches):
+    mctr = Counter()
+    for player in Player.player_values(matches):
+        pms = [m.map for m in player.matches]
+        mctr[len(set(pms))] += 1
+    for k in sorted(mctr):
+        print('{:>3}: {:>6}'.format(k, mctr[k]))
+
 if __name__ == '__main__':
-    winning_clusters('all', 9)
+    maps_per_player(MatchReport.all('all'))

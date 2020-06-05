@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import random
+from statistics import stdev
 import sys
 
 import matplotlib.pyplot as plt
@@ -17,7 +18,9 @@ from statsmodels.stats.proportion import proportion_confint
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
+from utils.filters import unique_player_reports
 from utils.models import Match, Rating, User, MatchReport
+from utils.models import Player as ModelPlayer
 import utils.download
 import utils.lookup
 
@@ -362,5 +365,157 @@ def plot_dist(ax, ctr, title):
         ys.append(ctr[x])
     ax.plot(xs, ys)
 
+def duplicate_matches():
+    """ Percentage of matches between the same two players."""
+    competition_counter = Counter()
+    for report in  MatchReport.all('all'):
+        competition_counter[report.competition_key] += 1
+    dup_counter = Counter()
+    for v in competition_counter.values():
+        dup_counter[v] += 1
+    for k in sorted(dup_counter):
+        print('{:>3}: {:>7}'.format(k, dup_counter[k]))
+
+def filtered_matches(player_matches, used_players):
+    """ Returns a dictionary of player_matches without any used players """
+    r = defaultdict(lambda: [])
+    for report_list in player_matches.values():
+        for report in report_list:
+            if report.player_1 in used_players or report.player_2 in used_players:
+                continue
+            r[report.player_1].append(report)
+            r[report.player_2].append(report)
+    return r
+
+def counts_per_player(data_set_type):
+    match_reports = MatchReport.all(data_set_type)
+    matches = unique_player_reports(match_reports)
+    players = set()
+    for r in matches:
+        players.add(r.player_1)
+        players.add(r.player_2)
+    print(len(matches)*2 == len(players))
+
+class Player:
+    def __init__(self, player_id):
+        self.player_id = player_id
+        self.upper_range = 0
+        self.lower_range = 10000
+        self.ratings = []
+        self.valid = False
+
+    def set_bounds(self, max_std, mincount):
+        """ Sets upper and lower bounds of ratings that generate
+a standard deviation within max_std and that contain at least mincount ratings."""
+        if len(self.ratings) < mincount:
+            return
+        sorted_ratings = sorted(self.ratings)
+        srstd = stdev(self.ratings)
+        while srstd > max_std and len(sorted_ratings) >= mincount:
+            if sorted_ratings[-1] - sorted_ratings[-2] > sorted_ratings[1] - sorted_ratings[0]:
+                del(sorted_ratings[-1])
+            else:
+                del(sorted_ratings[0])
+            srstd = stdev(sorted_ratings)
+        if srstd <= max_std:
+            self.upper_range = max(self.ratings)
+            self.lower_range = min(self.ratings)
+            self.valid = True
+
+def player_rating_stdevs(data_set_type):
+    match_reports = sorted(MatchReport.all(data_set_type), key=lambda x: x.timestamp)
+    players = {}
+    for report in match_reports:
+        if not report.player_1 in players:
+            players[report.player_1] = Player(report.player_1)
+        if not report.player_2 in players:
+            players[report.player_2] = Player(report.player_2)
+        players[report.player_1].ratings.append(report.rating_1)
+        players[report.player_2].ratings.append(report.rating_2)
+    stdevs = Counter()
+
+    for player in players.values():
+        l = player.ratings
+        if len(l) < 10:
+            continue
+        sorted_ratings = sorted(l)
+        best_group = sorted_ratings[:10]
+        best_std = stdev(best_group)
+        for i in range(len(l) - 10):
+            test_group = sorted_ratings[i:i+10]
+            test_std = stdev(test_group)
+            if test_std < best_std:
+                best_group = test_group
+                best_std = test_std
+        stdevs[int(best_std)] += 1
+    rolling_sum = 0
+    for sd in sorted(stdevs):
+        rolling_sum += stdevs[sd]
+        print('{:>5}: {:>5} : {:>7}'.format(sd, stdevs[sd], rolling_sum))
+
+def players_with_decent_ratings(data_set_type, max_std, mincount):
+    match_reports = sorted(MatchReport.all(data_set_type), key=lambda x: x.timestamp)
+    players = {}
+    player_counter = Counter()
+    for report in match_reports:
+        if not report.player_1 in players:
+            players[report.player_1] = Player(report.player_1)
+        if not report.player_2 in players:
+            players[report.player_2] = Player(report.player_2)
+        players[report.player_1].ratings.append(report.rating_1)
+        players[report.player_2].ratings.append(report.rating_2)
+    print(len(players))
+    for player in players.values():
+        player.set_bounds(max_std, mincount)
+    good_matches = []
+    for report in match_reports:
+        p1 = players[report.player_1]
+        p2 = players[report.player_2]
+        if p1.lower_range < report.rating_1 < p1.upper_range and p2.lower_range < report.rating_2 < p2.upper_range:
+            good_matches.append(report)
+    print(len(good_matches))
+
+def stddev_counts(data_set_type):
+    matches = MatchReport.all(data_set_type)
+    stdevs = Counter()
+    players = [p for p in ModelPlayer.player_values(matches) if len(p.ratings) > 4]
+    for player in players:
+        stdevs[int(stdev(player.ratings))] += 1
+    running_total = 0.0
+    for std in sorted(stdevs):
+        running_total += stdevs[std]
+        print('{:>4}:{:>5}: {:>5} ({:.2f})'.format(std, stdevs[std], int(running_total), running_total/len(players)))
+def best_stddev_counts(data_set_type, mincount):
+    matches = MatchReport.all(data_set_type)
+    stdevs = Counter()
+    players = ModelPlayer.rated_players(matches, mincount)
+    for player in players:
+        stdevs[int(player.best_stdev(mincount))] += 1
+    running_total = 0.0
+    for std in sorted(stdevs):
+        running_total += stdevs[std]
+        print('{:>4}:{:>5}: {:>5} ({:.2f})'.format(std, stdevs[std], int(running_total), running_total/len(players)))
+
+def ratings_counts(data_set_type):
+    matches = MatchReport.all(data_set_type)
+    ctr = Counter()
+    players = ModelPlayer.player_values(matches)
+    lp = float(len(players))
+    for player in players:
+        ctr[len(player.matches)] += 1
+    rt = 0
+    for c in sorted(ctr, reverse=True):
+        rt += ctr[c]
+        print('{:>4}:{:>5}: {:>5} ({:.2f})'.format(c, ctr[c], int(rt), rt/lp))
+
+def minimum_timestamp_match_report(data_set_type):
+    print(min([m.timestamp for m in MatchReport.all(data_set_type)]))
+
+def minimum_timestamp_rating(data_set_type):
+    timestamps = set()
+    for player in ModelPlayer.player_values(MatchReport.all(data_set_type)):
+        timestamps |= set([r.timestamp for r in Rating.all_for(player.player_id)])
+    print(min(timestamps))
+
 if __name__ == '__main__':
-    rating_diff_by_rating_bucket()
+    minimum_timestamp_rating('test')

@@ -1,18 +1,153 @@
 """ Basic objects used throughout the system."""
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 import csv
 import json
 import os
 import pathlib
 import re
+from statistics import median, stdev
 
 ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 import numpy as np
-from utils.lookup import constants
+from utils.lookup import Lookup
 
-LOOKUP = constants()
+LOOKUP = Lookup()
+
+class Player:
+    """ Holds information about a given player of the game (loaded from MatchRecord data). """
+    def __init__(self, player_id):
+        self.player_id = player_id
+        self.matches = []
+        self._best_ratings = {}
+        self._best_stdevs = {}
+
+    def best_stdev(self, mincount):
+        if not self._best_stdevs[mincount]:
+            self.best_rating(mincount)
+        return self._best_stdevs[mincount]
+
+    def best_rating(self, mincount):
+        """ Returns the median of the slice of ratings length {mincount} with the lowest standard deviation. """
+        if len(self.ratings) < mincount*1.5:
+            return
+
+        key = mincount
+        # return cached calculation
+        if key in self._best_ratings:
+            return self._best_ratings[key]
+
+        sorted_ratings = sorted(self.ratings)
+        best_group = sorted_ratings[:mincount]
+        best_std = stdev(best_group)
+        for i in range(1, len(sorted_ratings) - mincount):
+            test_group = sorted_ratings[i:i+mincount]
+            test_std = stdev(test_group)
+            if test_std <= best_std:
+                best_group = test_group
+                best_std = test_std
+        best = median(best_group)
+        self._best_ratings[key] = best # cache the calculation
+        self._best_stdevs[key] = best_std # cache the calculation
+        return best
+
+    def add_civ_percentages(self, ctr, start, edge):
+        """ Proportionally adds civs within range to ctr. """
+        civ_ctr = Counter()
+        for m in self.matches:
+            if m.player_1 == self.player_id and start < m.rating_1 <= edge:
+                civ_ctr[m.civ_1] += 1
+            elif m.player_2 == self.player_id and start < m.rating_2 <= edge:
+                civ_ctr[m.civ_2] += 1
+        total = float(sum(civ_ctr.values()))
+        for civ, count in civ_ctr.items():
+            ctr[civ] += count/total
+
+    def add_map_percentages(self, ctr, start, edge):
+        """ Proportionally adds maps within range to ctr. """
+        map_ctr = Counter()
+        for m in self.matches:
+            map_ctr[m.map] += 1
+        total = float(sum(map_ctr.values()))
+        for map, count in map_ctr.items():
+            ctr[map] += count/total
+
+    def favorite_civ(self, start, edge):
+        """ Choose the favorite civilization chosen when player rating between start and edge."""
+        civ_ctr = Counter()
+        for m in self.matches:
+            if m.player_1 == self.player_id and start < m.rating_1 <= edge:
+                civ_ctr[m.civ_1] += 1
+            elif m.player_2 == self.player_id and start < m.rating_2 <= edge:
+                civ_ctr[m.civ_2] += 1
+        if not civ_ctr:
+            return
+        return civ_ctr.most_common(1)[0][0]
+
+    def ordered_ratings(self, ordering):
+        r = []
+        if ordering == 'timestamp':
+            matches = sorted(self.matches, key=lambda x: x.timestamp)
+        else:
+            return self.ratings
+        for m in matches:
+            if m.player_1 == self.player_id:
+                r.append(m.rating_1)
+            elif m.player_2 == self.player_id:
+                r.append(m.rating_2)
+        return [rating for rating in r if rating > 100]
+
+    @property
+    def ratings(self):
+        r = []
+        for m in self.matches:
+            if m.player_1 == self.player_id:
+                r.append(m.rating_1)
+            elif m.player_2 == self.player_id:
+                r.append(m.rating_2)
+        return [rating for rating in r if rating > 100]
+
+    @property
+    def latest_match(self):
+        if not self.matches:
+            return None
+        return sorted(self.matches, key=lambda x: x.timestamp)[-1]
+
+    @property
+    def latest_rating(self):
+        if not self.matches:
+            return None
+        m = self.latest_match
+        if m.player_1 == self.player_id:
+            return m.rating_1
+        return m.rating_2
+
+    @property
+    def latest_civ(self):
+        if not self.matches:
+            return None
+        m = self.latest_match
+        if m.player_1 == self.player_id:
+            return m.civ_1
+        return m.civ_2
+
+    @property
+    def maps(self):
+        """ List of all maps played by this player. """
+        return set([m.map for m in self.matches])
+
+    def rated_players(matches, mincount):
+        return [p for p in Player.player_values(matches) if p.best_rating(mincount)]
+
+    def player_values(matches):
+        player_dict = {}
+        for match in matches:
+            for player_id in match.players:
+                if player_id not in player_dict: player_dict[player_id] = Player(player_id)
+            player_dict[match.player_1].matches.append(match)
+            player_dict[match.player_2].matches.append(match)
+        return player_dict.values()
 
 class MatchReport():
     """ Holds match information from both players' perspective (loaded from Match records). """
@@ -23,11 +158,17 @@ class MatchReport():
         self.rating_2 = int(row[2])
         self.score = int(row[3])
         self.winner = int(row[4])
+        self.player_1 = int(row[5])
+        self.player_2 = int(row[6])
+        self.timestamp = int(row[7])
         c1, c2, m = self.code.split('-')
-        self.civ_1 = LOOKUP['civ'][int(c1)]
-        self.civ_2 = LOOKUP['civ'][int(c2)]
+        self.civ_1 = LOOKUP.civ_name(c1)
+        self.civ_2 = LOOKUP.civ_name(c2)
         self.mirror = c1 == c2
-        self.map = LOOKUP['map_type'][int(m)]
+        self.map = LOOKUP.map_name(m)
+    @property
+    def players(self):
+        return (self.player_1, self.player_2,)
 
     def rating_edges(data_set_type, map_type, split, exclude_mirror=True):
         ratings = []
@@ -38,6 +179,20 @@ class MatchReport():
             ratings.append(report.rating_2)
         pct = 1.0/split
         return [int(np.quantile(ratings, pct + pct*i)) for i in range(split - 1)]
+
+    def by_rating(data_set_type, lower, upper):
+        reports = []
+        used_keys = set()
+        with open(MatchReport.data_file_template.format(data_set_type)) as f:
+            reader = csv.reader(f)
+            for row in reader:
+                report = MatchReport(row)
+                if report.competition_key in used_keys:
+                    continue
+                used_keys.add(report.competition_key)
+                if lower <= report.rating_1 < upper and lower <= report.rating_2 < upper:
+                    reports.append(report)
+        return reports
 
     def all(data_set_type):
         reports = []
@@ -69,6 +224,15 @@ class MatchReport():
                         reports.append(report)
         return reports
 
+    def other_player(self, player_id):
+        if player_id == self.player_1:
+            return self.player_2
+        return self.player_1
+
+    @property
+    def competition_key(self):
+        return '{}-{}'.format(*sorted(self.players))
+
 class Match():
     """Holds match data from one player's perspective (loaded from api) """
     data_file_template = '{}/data/matches_for_{{}}.csv'.format(ROOT_DIR)
@@ -96,9 +260,9 @@ class Match():
         won_state = set(('won',))
         possibles = set()
         try:
-            for rating in Rating.lookup_for(profile_id)[rating]:
-                if 0 < rating.timestamp - started < 3600:
-                    possibles.add(rating.won_state)
+            for possible_rating in Rating.lookup_for(profile_id)[rating]:
+                if 0 < possible_rating.timestamp - started < 3600:
+                    possibles.add(possible_rating.won_state)
         except KeyError:
             """ Thrown when there are no rating records matching that player's current rating. """
             pass
@@ -136,11 +300,15 @@ class Match():
         determined_winner = self.determine_winner()
         if self.civ_1 > self.civ_2:
             code = '{}-{}-{}'.format(self.civ_2, self.civ_1, self.map_type)
+            player_1 = self.player_id_2
+            player_2 = self.player_id_1
             rating_1 = self.rating_2
             rating_2 = self.rating_1
             winner = determined_winner == 1 and 2 or 1
         else:
             code = '{}-{}-{}'.format(self.civ_1, self.civ_2, self.map_type)
+            player_1 = self.player_id_1
+            player_2 = self.player_id_2
             rating_1 = self.rating_1
             rating_2 = self.rating_2
             winner = determined_winner
@@ -151,7 +319,7 @@ class Match():
             score = self.rating_1 - self.rating_2
         else:
             score = self.rating_2 - self.rating_1
-        return [code, rating_1, rating_2, score, winner,]
+        return [code, rating_1, rating_2, score, winner, player_1, player_2, self.started,]
 
     def rating_for(self, profile_id):
         if str(profile_id) == self.player_id_1:
@@ -198,6 +366,10 @@ class Match():
     def to_csv(self):
         return [ self.match_id, self.started, self.map_type, self.civ_1, self.rating_1, self.player_id_1,
                  self.civ_2, self.rating_2, self.player_id_2, self.winner, ]
+
+    @property
+    def recordable(self):
+        return self.rating_1 and self.rating_2
 
     def from_csv(row):
         match_data = {
@@ -249,7 +421,7 @@ class Match():
 
 class Rating():
     """Holds each change of rating for a single player (loaded from api with old rating extrapolated)"""
-    header = ['Profile Id', 'Rating', 'Wins', 'Losses', 'Drops', 'Timestamp',]
+    header = ['Profile Id', 'Rating', 'Old Rating', 'Wins', 'Losses', 'Drops', 'Timestamp', 'Won State']
     data_file_template = '{}/data/ratings_for_{{}}.csv'.format(ROOT_DIR)
     def __init__(self, profile_id, data):
         self.profile_id = profile_id
@@ -323,6 +495,7 @@ class User():
             for row in reader:
                 try:
                     users.append(User.from_csv(row))
+
                 except ValueError:
                     pass
         return users

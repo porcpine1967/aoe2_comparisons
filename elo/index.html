@@ -47,8 +47,8 @@
 
 <p>As we can see from the graph, the confidence interval increases as the difference in rating increases. This is because the matchmaking algorithm attempts to match players of similar levels. The figures <b>Number of matches per rating difference</b> and <b>Log of number of matches per rating difference</b> (generated <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/0c3adb23c589bbc3afc2b02c4b2c5e99816b80e2/elo/graphs.py#L75">thus</a>) show the distribution of ratings differences, which is exponential (r score of log is -0.95 for both model and verification data sets computed <a href="https://github.com/porcpine1967/aoe2_comparisons/blob/6a40de15885597d7eb2784c39c23b88af800882e/elo/calculations.py#L68">as above</a>). Note: for legibility, only rating differences greater than 10 are shown.</p>
 
-<img src="../graphs/rating_distribution.png"/>
-<img src="../graphs/log_rating_distribution.png"/>
+<img src="../graphs/ratings_difference_distribution.png"/>
+<img src="../graphs/log_ratings_difference_distribution.png"/>
 
 <h2>Conclusion</h2>
 <p>The AOE2 DE rating system strongly correlates win likelihood with rating difference in a linear fashion, with a roughly 1.1% greater chance of winning for every 10 rating points difference.</p>

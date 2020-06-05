@@ -13,6 +13,9 @@ def set_model_data_file_templates():
     if not '/tests' in utils.models.Rating.data_file_template:
         utils.models.Rating.data_file_template = utils.models.Rating.data_file_template.replace('/data', '/tests/data')
 
+    if not '/tests' in utils.models.MatchReport.data_file_template:
+        utils.models.MatchReport.data_file_template = utils.models.MatchReport.data_file_template.replace('/data', '/tests/data')
+
 # Match
 def test_match_to_from_csv():
     match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
@@ -81,7 +84,7 @@ def test_determine_winner():
     assert 2 == match.determine_winner()
 
 def test_to_record():
-    expected = ['5-30-33', 1158, 1132, 26, 1]
+    expected = ['5-30-33', 1158, 1132, 26, 1, '1301032', '242765', 1582654374]
     # Same as test determine winner
     match_row = [ '9409809','1582654374','33','30','1132','242765','5','1158','1301032','0', ]
     match = utils.models.Match.from_csv(match_row)
@@ -91,7 +94,7 @@ def test_to_record():
     match = utils.models.Match.from_csv(match_row)
     assert expected == match.to_record()
     # With no winner (ratings changed so winner can't be found)
-    expected = ['5-30-33', 115, 113, 0, 0]
+    expected = ['5-30-33', 115, 113, 0, 0, '1301032', '242765', 1582654374]
     match_row = [ '9409809','1582654374','33','30','113','242765','5','115','1301032','0', ]
     match = utils.models.Match.from_csv(match_row)
     assert expected == match.to_record()
@@ -115,3 +118,6 @@ def test_user_to_from_csv():
     user = utils.models.User.from_csv(user_row)
     assert user_row == [str(x) for x in user.to_csv]
 
+# MatchReport
+def test_all():
+    utils.models.MatchReport.all('test')

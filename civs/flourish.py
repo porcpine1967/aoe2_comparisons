@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-""" Looks at the elo progression of 100 random players from 1v1 ranked in order to see if there are any patterns."""
+""" Generates csv files for visualization in flourish """
 from collections import defaultdict, Counter
 import csv
 import pathlib
@@ -8,8 +8,8 @@ import pathlib
 import numpy as np
 from statsmodels.stats.proportion import proportion_confint
 
-from utils.models import MatchReport
-from utils.lookup import constants
+from utils.models import MatchReport, Player
+from utils.lookup import Lookup
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 GRAPH_DIR = '{}/graphs'.format(ROOT_DIR)
@@ -51,7 +51,35 @@ CIVILIZATIONS = {
     'Lithuanians': { 'category': 'Definitive Edition', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/0/0d/CivIcon-Lithuanians.png'},
     'Tatars': { 'category': 'Definitive Edition', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/f/f2/CivIcon-Tatars.png'},
 }
-
+MAPS = {
+'Alpine Lakes': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4b/Alpine_lakes_select_aoe2DE.png'},
+'Arabia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/44/Imgres-0.jpg'},
+'Arena': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/b5/Rm_arena.gif'},
+'Black Forest': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/c/ca/Th.jpeg'},
+'Cenotes': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/a0/Cenotes_Preview.jpg'},
+'Coastal': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/85/Coastal-_Age_of_Empires.png'},
+'Continental': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/41/Age_of_Empires_-_Continental2.jpg'},
+'Four Lakes': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/19/Fourlakes_selection_aoe2de.png'},
+'Ghost Lake': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4e/Ghostlake.gif'},
+'Gold Rush': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/5/53/Gold_Rush.jpg'},
+'Golden Pit': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/c/c0/Golden_Pit_mini_map-0.png'},
+'Golden Swamp': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/1e/Goldenswamp_selection_aoe2de.png'},
+'Hideout': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/9/98/HideoutMapAoE2.png'},
+'Highland': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/b4/Highland_-_AoE.jpg'},
+'Islands': { 'category': 'Water', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/3/3d/Islands_-_large.jpg'},
+'Lombardia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4c/LombardiaMapAoE2.png'},
+'Mediterranean': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/ab/AoEII_Mediterranean2.png'},
+'MegaRandom': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/bf/Megarandom1.png'},
+'Mongolia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/9/94/Mongolia-_AoEII_4-player.png'},
+'Nomad': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/13/Nomad_minimap_aoe2.png'},
+'Oasis': { 'category': '', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/7/7d/Oasis.png'},
+'Rivers': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/aa/Rivers_minimap.jpg'},
+'Scandinavia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/87/Scandinavia.jpg'},
+'Serengeti': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/a9/Serengeti_map.png'},
+'Steppe': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/8c/Straitofmalacca.png'},
+'Team Islands': { 'category': 'Water', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/e/ed/Team_Islands.jpg'},
+'Valley': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/f/fd/Valley_Preview.jpg'},
+}
 class MatchExperience:
     """ What happened in a match from a single player's point of view."""
     def __init__(self, rating, civ, enemy_civ, score, won):
@@ -166,5 +194,110 @@ def civs_by_snapshots(data_set_type, map_type, snapshot_count):
         writer = csv.writer(f)
         writer.writerows(rows)
 
+# class Player:
+#     def __init__(self, player_id):
+#         self.player_id = player_id
+#         self.civ = None
+#         self.rating = None
+#         self.timestamp = None
+
+#     def maybe_update(self, civ, rating, timestamp):
+#         if not self.timestamp or self.timestamp < timestamp:
+#             self.civ = civ
+#             self.rating = rating
+#             self.timestamp = timestamp
+
+def map_popularity(data_set_type):
+    matches = MatchReport.all(data_set_type)
+    players = Player.player_values(matches)
+    m = Counter()
+    for player in players:
+        for map_type in player.maps:
+            m[map_type] += 1
+    return m
+
+def civ_popularity_by_rating(matches, graph_name):
+    print(graph_name)
+    mincount = 5
+    all_players = Player.player_values(matches)
+    players = [p for p in all_players if p.best_rating(mincount)]
+    print(len(players))
+    split = max(int(len(players)/1000), 5)
+    ratings = [p.best_rating(mincount) for p in players]
+    pct = 1.0/split
+    edges = [int(np.quantile(ratings, pct + pct*i)) for i in range(split - 1)]
+    edges.append(10000)
+    start = 0
+    counters = []
+    headers = []
+    for edge in edges:
+        if edge == edges[-1]:
+            headers.append('{}+'.format(start + 1))
+        else:
+            headers.append('{} - {}'.format(start + 1, edge))
+        civ_ctr = Counter()
+        counters.append(civ_ctr)
+        snapshot_players = [p for p in players if start < p.best_rating(mincount) <= edge]
+        for player in snapshot_players:
+            player.add_civ_percentages(civ_ctr, start, edge)
+        start = edge
+    row_header = ['Civilization', 'Category', 'Image'] + headers
+    rows = [row_header]
+    for civ_name, civ_info in CIVILIZATIONS.items():
+        row = [civ_name, civ_info['category'], civ_info['image'],]
+        for civ_ctr in counters:
+            row.append(civ_ctr[civ_name])
+        rows.append(row)
+    with open('{}/flourish_{}_popularity.csv'.format(GRAPH_DIR,graph_name), 'w') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+def civ_popularity_by_map(data_set_type):
+    """ Writes csv for civ popularities by ratings snapshot for every map type."""
+    matches = MatchReport.all(data_set_type)
+    lookup = Lookup()
+    for map_name, count in map_popularity(data_set_type).most_common():
+        if count < 1100:
+            continue
+        print(map_name, count)
+        map_matches = [match for match in matches if match.map == map_name]
+        civ_popularity_by_rating(map_matches, map_name.lower())
+
+def map_popularity_by_rating(players, mincount):
+    print(len(players))
+    split = max(int(len(players)/1000), 5)
+    ratings = [p.best_rating(mincount) for p in players]
+    pct = 1.0/split
+    edges = [int(np.quantile(ratings, pct + pct*i)) for i in range(split - 1)]
+    edges.append(10000)
+    start = 0
+    counters = []
+    headers = []
+    for edge in edges:
+        if edge == edges[-1]:
+            headers.append('{}+'.format(start + 1))
+        else:
+            headers.append('{} - {}'.format(start + 1, edge))
+        map_ctr = Counter()
+        counters.append(map_ctr)
+        snapshot_players = [p for p in players if start < p.best_rating(mincount) <= edge]
+        for player in snapshot_players:
+            player.add_map_percentages(map_ctr, start, edge)
+        start = edge
+    row_header = ['Map', 'Category', 'Image'] + headers
+    rows = [row_header]
+    for map_name, map_info in MAPS.items():
+        row = [map_name, map_info['category'], map_info['image'],]
+        for map_ctr in counters:
+            row.append(map_ctr[map_name])
+        print(sum(row[3:]))
+        rows.append(row)
+    with open('{}/flourish_map_popularity.csv'.format(GRAPH_DIR), 'w') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
 if __name__ == '__main__':
-    civs_by_snapshots('all', 29, 25)
+    matches = MatchReport.all('all')
+    mincount = 5
+    map_popularity_by_rating(Player.rated_players(matches, mincount), mincount)
+
