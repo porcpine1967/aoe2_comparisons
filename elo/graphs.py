@@ -134,5 +134,31 @@ def player_rating_trajectories(data_set_type, mincount):
         plt.plot(player.ordered_ratings('timestamp'), alpha=.1, c='gray')
     plt.show()
 
+def best_rating_by_number_of_matches(data_set_type):
+    players = CachedPlayer.rated_players(data_set_type)
+    num_ratings = defaultdict(lambda: [])
+    for player in players:
+        num_ratings[len(player.matches)].append(player.best_rating)
+    for play_count in sorted(num_ratings):
+        values = num_ratings[play_count]
+        total = len(values)
+        score = np.mean(values)
+        for _ in range(total):
+            slope_x.append(play_count)
+            slope_y.append(score)
+        # Eliminate data with minimal value from graph
+        # .12 was chosen as cutoff to maximize reasonable data
+        if lower_err < .2 and pct_win < 1 and total > 3:
+            # Only plot every 5th record to make graph readable
+            if not score % 5:
+                x.append(score)
+                y.append(pct_win)
+                lower_yerr.append(lower_err)
+                upper_yerr.append(upper_err)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(slope_x, slope_y)
+    print('  Intercept: {:.3f}, Slope: {:.4f}, R value: {:.3f}, p value: {}, Std Err: {}'.format(intercept, slope, r_value, p_value, std_err))
+
+    
+
 if __name__ == '__main__':
     player_rating_trajectories('test', 5)

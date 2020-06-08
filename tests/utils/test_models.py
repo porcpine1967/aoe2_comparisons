@@ -12,9 +12,10 @@ def set_model_data_file_templates():
         utils.models.Match.data_file_template = utils.models.Match.data_file_template.replace('/data', '/tests/data')
     if not '/tests' in utils.models.Rating.data_file_template:
         utils.models.Rating.data_file_template = utils.models.Rating.data_file_template.replace('/data', '/tests/data')
-
     if not '/tests' in utils.models.MatchReport.data_file_template:
         utils.models.MatchReport.data_file_template = utils.models.MatchReport.data_file_template.replace('/data', '/tests/data')
+    if not '/tests' in utils.models.User.data_file:
+        utils.models.User.data_file = utils.models.User.data_file.replace('/data', '/tests/data')
 
 # Match
 def test_match_to_from_csv():
@@ -114,9 +115,20 @@ def test_rating_lookup():
 
 # User
 def test_user_to_from_csv():
-    user_row = [ '196240','TheViper','2318','399', ]
+    user_row = [ '196240','TheViper','2318','399', 'False', ]
     user = utils.models.User.from_csv(user_row)
     assert user_row == [str(x) for x in user.to_csv]
+
+def test_user_should_update():
+    user_row = [ '196240','TheViper','2318','399', ]
+    user_data = { 'name': 'TheViper', 'rating': 2318, 'games': 399, }
+    user = utils.models.User.from_csv(user_row)
+    assert user.should_update
+    user.update(user_data)
+    assert not user.should_update
+    user_data['games'] += 1
+    user.update(user_data)
+    assert user.should_update
 
 # MatchReport
 def test_all():

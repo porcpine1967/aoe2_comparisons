@@ -2,10 +2,12 @@
 from collections import defaultdict
 import csv
 import json
+from concurrent.futures import ThreadPoolExecutor as Pool
 import os
 import sys
 import pathlib
 import re
+import time
 
 ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -18,14 +20,18 @@ except:
 
 MAX_DOWNLOAD = 10000
 
-def users(force=False):
-    if not force and os.path.exists(User.data_file):
-        print('users.csv already exists')
-        return
+def users(force=False, write=True):
+    existing_users = {}
+    if os.path.exists(User.data_file):
+        if force:
+            for u in User.all():
+                existing_users[u.profile_id] = u
+        else:
+            print('users.csv already exists')
+            return
     url_template = 'https://aoe2.net/api/leaderboard?game=aoe2de&leaderboard_id=3&start={start}&count={count}'
-    country_counter = defaultdict(lambda: [])
     records = 0
-    rows = []
+    added = 0
     start = 1
     while True:
         print("Downloading from {} to {}".format(start, start - 1 + MAX_DOWNLOAD))
@@ -37,13 +43,20 @@ def users(force=False):
         if not records:
             records = d['total']
         for record in d['leaderboard']:
-            rows.append(User(record))
-        if len(rows) >= records:
+            added += 1
+            if record['profile_id'] in existing_users:
+                existing_users[record['profile_id']].update(record)
+            else:
+                u = User(record)
+                existing_users[u.profile_id] = u
+        if added >= records:
             break
         start = MAX_DOWNLOAD + start
-    with open(User.data_file, 'w') as f:
-        csv.writer(f).writerows([User.header])
-        csv.writer(f).writerows([u.to_csv for u in rows])
+    if write:
+        with open(User.data_file, 'w') as f:
+            csv.writer(f).writerows([User.header])
+            csv.writer(f).writerows([u.to_csv for u in existing_users.values()])
+    return existing_users
 
 def matches(profile_id, update=False):
     """ Downloads matches for a given profile"""
@@ -133,43 +146,61 @@ def ratings(profile_id, update=False):
 def profiles_from_files(file_prefix):
     profile_pattern = re.compile(r'{}_for_([0-9]+)\.csv'.format(file_prefix))
     profiles = set()
+    ten_hours_ago = time.time() - 60*60*10
     for filename in os.listdir('{}/data'.format(ROOT_DIR)):
         m = profile_pattern.match(filename)
         if m:
             profiles.add(m.group(1))
     return profiles
 
-def all_matches_and_ratings(downloaded):
+def new_matches_and_ratings(downloaded, checked):
     print('Calling All Matches and Ratings')
-
+    print('Will skip {} profiles'.format(len(downloaded)))
     to_download = set()
-    for profile_id in profiles_from_files('matches'):
-        if not profile_id in downloaded:
-            to_download.add(profile_id)
-    for match in Match.all():
-        if not match.player_id_1 in downloaded:
-            to_download.add(match.player_id_1)
-        if not match.player_id_2 in downloaded:
-            to_download.add(match.player_id_2)
+    for profile_id in downloaded - checked:
+        for match in Match.all_for(profile_id):
+            if not match.player_id_1 in downloaded:
+                to_download.add(match.player_id_1)
+            if not match.player_id_2 in downloaded:
+                to_download.add(match.player_id_2)
+        checked.add(profile_id)
+
     print('Downloading {} profiles'.format(len(to_download)))
+    with Pool(10) as p:
+        p.map(both, to_download)
     for profile_id in to_download:
-        matches(profile_id, True)
-        ratings(profile_id, True)
         downloaded.add(profile_id)
     if to_download:
-        all_matches_and_ratings(downloaded)
+        new_matches_and_ratings(downloaded, checked)
 
+def both_force(profile_id):
+    matches(profile_id, True)
+    ratings(profile_id, True)
+
+def both(profile_id):
+    matches(profile_id)
+    ratings(profile_id)
+
+def reconcile():
+    match_ids = profiles_from_files('matches')
+    rating_ids = profiles_from_files('ratings')
+    for rating in rating_ids:
+        if rating not in match_ids:
+            matches(rating)
+    for match in match_ids:
+        if match not in rating_ids:
+            ratings(match)
+    
 def update():
     users(True)
-    downloaded = set()
-    user_list = User.all()
+    all_users = User.all()
+    user_list = [user.profile_id for user in all_users if user.should_update]
     print('Downloading {} profiles'.format(len(user_list)))
-    for user in user_list:
-        matches(user.profile_id, True)
-        ratings(user.profile_id, True)
-        downloaded.add(user.profile_id)
-    all_matches_and_ratings(downloaded)
+    with Pool(10) as p:
+        p.map(both_force, user_list)
+    downloaded = set([u.profile_id for u in all_users])
+    checked = profiles_from_files('matches')
+    new_matches_and_ratings(downloaded.union(checked), checked)
 
 if __name__ == '__main__':
-    update()
-
+    reconcile()

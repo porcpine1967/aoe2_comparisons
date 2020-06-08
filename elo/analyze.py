@@ -7,8 +7,10 @@ import json
 import os
 import pathlib
 import random
+import re
 from statistics import stdev
 import sys
+import time
 
 import matplotlib.pyplot as plt
 import requests
@@ -518,4 +520,17 @@ def minimum_timestamp_rating(data_set_type):
     print(min(timestamps))
 
 if __name__ == '__main__':
-    minimum_timestamp_rating('test')
+    file_prefix = 'matches'
+    profile_pattern = re.compile(r'{}_for_([0-9]+)\.csv'.format(file_prefix))
+    profiles = set()
+    inout = Counter()
+    ten_hours_ago = time.time() - 60*60*10
+    for filename in os.listdir('{}/data'.format(ROOT_DIR)):
+        m = profile_pattern.match(filename)
+        if m:
+            mtime = os.stat('{}/data/{}'.format(ROOT_DIR, filename)).st_mtime
+            if mtime - ten_hours_ago > 0:
+                inout['in'] += 1
+            else:
+                inout['out'] += 1
+    print(inout)

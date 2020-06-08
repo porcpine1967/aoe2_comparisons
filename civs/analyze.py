@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-""" Looks at the elo progression of 100 random players from 1v1 ranked in order to see if there are any patterns."""
+""" Exploration of data related to civ and map popularity. """
 from collections import defaultdict, Counter
 import csv
 import json

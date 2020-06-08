@@ -52,33 +52,38 @@ CIVILIZATIONS = {
     'Tatars': { 'category': 'Definitive Edition', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/f/f2/CivIcon-Tatars.png'},
 }
 MAPS = {
-'Alpine Lakes': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4b/Alpine_lakes_select_aoe2DE.png'},
-'Arabia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/44/Imgres-0.jpg'},
-'Arena': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/b5/Rm_arena.gif'},
-'Black Forest': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/c/ca/Th.jpeg'},
-'Cenotes': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/a0/Cenotes_Preview.jpg'},
-'Coastal': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/85/Coastal-_Age_of_Empires.png'},
-'Continental': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/41/Age_of_Empires_-_Continental2.jpg'},
-'Four Lakes': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/19/Fourlakes_selection_aoe2de.png'},
-'Ghost Lake': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4e/Ghostlake.gif'},
-'Gold Rush': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/5/53/Gold_Rush.jpg'},
-'Golden Pit': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/c/c0/Golden_Pit_mini_map-0.png'},
-'Golden Swamp': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/1e/Goldenswamp_selection_aoe2de.png'},
-'Hideout': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/9/98/HideoutMapAoE2.png'},
-'Highland': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/b4/Highland_-_AoE.jpg'},
-'Islands': { 'category': 'Water', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/3/3d/Islands_-_large.jpg'},
-'Lombardia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4c/LombardiaMapAoE2.png'},
-'Mediterranean': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/ab/AoEII_Mediterranean2.png'},
-'MegaRandom': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/bf/Megarandom1.png'},
-'Mongolia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/9/94/Mongolia-_AoEII_4-player.png'},
-'Nomad': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/13/Nomad_minimap_aoe2.png'},
-'Oasis': { 'category': '', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/7/7d/Oasis.png'},
-'Rivers': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/aa/Rivers_minimap.jpg'},
-'Scandinavia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/87/Scandinavia.jpg'},
-'Serengeti': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/a9/Serengeti_map.png'},
-'Steppe': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/8c/Straitofmalacca.png'},
-'Team Islands': { 'category': 'Water', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/e/ed/Team_Islands.jpg'},
-'Valley': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/f/fd/Valley_Preview.jpg'},
+    'Acropolis': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/3/3d/Acropolis_Preview.jpg'},
+    'Alpine Lakes': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4b/Alpine_lakes_select_aoe2DE.png'},
+    'Arabia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/44/Imgres-0.jpg'},
+    'Arena': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/b5/Rm_arena.gif'},
+    'Black Forest': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/c/ca/Th.jpeg'},
+    'Bog Islands': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/0/02/Bog_Islands.png'},
+    'Cenotes': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/a0/Cenotes_Preview.jpg'},
+    'Coastal': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/85/Coastal-_Age_of_Empires.png'},
+    'Continental': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/41/Age_of_Empires_-_Continental2.jpg'},
+    'Four Lakes': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/19/Fourlakes_selection_aoe2de.png'},
+    'Ghost Lake': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4e/Ghostlake.gif'},
+    'Gold Rush': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/5/53/Gold_Rush.jpg'},
+    'Golden Pit': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/c/c0/Golden_Pit_mini_map-0.png'},
+    'Golden Swamp': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/1e/Goldenswamp_selection_aoe2de.png'},
+    'Hideout': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/9/98/HideoutMapAoE2.png'},
+    'Highland': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/b4/Highland_-_AoE.jpg'},
+    'Hill Fort': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/2/26/HillFortMapAoE2.png'},
+    'Islands': { 'category': 'Water', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/3/3d/Islands_-_large.jpg'},
+    'Kilimanjaro': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/5/55/Kilimanjaro.png'},
+    'Lombardia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/4/4c/LombardiaMapAoE2.png'},
+    'Mediterranean': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/ab/AoEII_Mediterranean2.png'},
+    'MegaRandom': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/b/bf/Megarandom1.png'},
+    'Mongolia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/9/94/Mongolia-_AoEII_4-player.png'},
+    'Mountain Pass': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/3/39/Mountain.png'},
+    'Nomad': { 'category': 'Hybrid', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/1/13/Nomad_minimap_aoe2.png'},
+    'Oasis': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/7/7d/Oasis.png'},
+    'Rivers': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/aa/Rivers_minimap.jpg'},
+    'Scandinavia': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/87/Scandinavia.jpg'},
+    'Serengeti': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/a9/Serengeti_map.png'},
+    'Steppe': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/8/8c/Straitofmalacca.png'},
+    'Team Islands': { 'category': 'Water', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/e/ed/Team_Islands.jpg'},
+    'Valley': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/f/fd/Valley_Preview.jpg'},
 }
 class MatchExperience:
     """ What happened in a match from a single player's point of view."""
@@ -218,7 +223,7 @@ def map_popularity(data_set_type):
 
 def civ_popularity_by_rating(players, map_name):
     print(map_name)
-    edges = [i for i in range(650, 1651, 50)]
+    edges = [i for i in range(650, 1701, 50)]
     edges.append(10000)
     start = 0
     counters = []
@@ -237,7 +242,7 @@ def civ_popularity_by_rating(players, map_name):
             if player.add_civ_percentages(civ_ctr, map_name, start, edge):
                 total += 1
         edge_totals.append(total)
-        start = edge
+        start = edge - 50
     row_header = ['Civilization', 'Category', 'Image'] + headers
     rows = [row_header]
     for civ_name, civ_info in CIVILIZATIONS.items():
@@ -252,19 +257,17 @@ def civ_popularity_by_rating(players, map_name):
 def civ_popularity_by_map(data_set_type):
     """ Writes csv for civ popularities by ratings snapshot for every map type."""
     players = CachedPlayer.rated_players(data_set_type)
-    lookup = Lookup()
     civ_popularity_by_rating(players, 'all')
-    return
     for map_name, count in map_popularity(data_set_type).most_common():
         if count < 1100:
             continue
         print(map_name, count)
         civ_popularity_by_rating(players, map_name)
-        break
 
-def map_popularity_by_rating(players, mincount):
+def map_popularity_by_rating(data_set_type):
+    players = CachedPlayer.rated_players(data_set_type)
     print(len(players))
-    edges = [i for i in range(650, 1651, 50)]
+    edges = [i for i in range(650, 1701, 50)]
     edges.append(10000)
     start = 0
     counters = []
@@ -279,19 +282,69 @@ def map_popularity_by_rating(players, mincount):
         snapshot_players = [p for p in players if start < p.best_rating <= edge]
         for player in snapshot_players:
             player.add_map_percentages(map_ctr, start, edge)
-        start = edge
+        start = edge - 50
     row_header = ['Map', 'Category', 'Image'] + headers
     rows = [row_header]
     for map_name, map_info in MAPS.items():
         row = [map_name, map_info['category'], map_info['image'],]
         for map_ctr in counters:
-            row.append(100*map_ctr[map_name]/float(sum([v for v in map_ctr.values()])))
+            row.append(map_ctr[map_name])
         print(sum(row[3:]))
         rows.append(row)
     with open('{}/flourish_map_popularity.csv'.format(GRAPH_DIR), 'w') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
+def map_popularity_by_number_of_matches(data_set_type):
+    map_counters = defaultdict(lambda: Counter())
+    players = Player.player_values(MatchReport.all(data_set_type))
+    for player in players:
+        player.add_map_percentages(map_counters[len(player.matches)], 0, 10000)
+    rt = 0
+    hold_counter = Counter()
+    start_key = None
+    end_key = None
+    headers = []
+    counters = []
+    for key in sorted(map_counters):
+        end_key = key
+        if not start_key:
+            start_key = key
+        ctr = map_counters[key]
+        for k, v in ctr.items():
+            hold_counter[k] += v
+        if sum(hold_counter.values())/len(players) < .018:
+            continue
+        counters.append(hold_counter)
+        if end_key > start_key:
+            print_key = '{} - {}'.format(start_key, end_key)
+        else:
+            print_key = str(start_key)
+        headers.append(print_key)
+        print('{:>10}: {:.2f}'.format(print_key, sum(hold_counter.values())))
+        start_key = None
+        hold_counter = Counter()
+    if end_key > start_key:
+        print_key = '{} - {}'.format(start_key, end_key)
+    else:
+        print_key = str(start_key)
+    headers.append(print_key)
+    counters.append(hold_counter)
+    print('{:>10}: {:.2f}'.format(print_key, sum(hold_counter.values())))
+    print(headers)
+    row_header = ['Map', 'Category', 'Image'] + headers
+    rows = [row_header]
+    for map_name, map_info in MAPS.items():
+        row = [map_name, map_info['category'], map_info['image'],]
+        for map_ctr in counters:
+            row.append(map_ctr[map_name])
+        print(sum(row[3:]))
+        rows.append(row)
+    with open('{}/flourish_map_popularity_by_num_matches.csv'.format(GRAPH_DIR), 'w') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
 if __name__ == '__main__':
     data_set_type = 'model'
-    civ_popularity_by_map(data_set_type)
+    map_popularity_by_number_of_matches(data_set_type)
+    map_popularity_by_rating(data_set_type)
+    # civ_popularity_by_map(data_set_type)

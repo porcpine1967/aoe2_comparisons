@@ -2,6 +2,7 @@
 
 from collections import defaultdict, Counter
 import csv
+from datetime import datetime
 import json
 import os
 import pathlib
@@ -16,7 +17,7 @@ from utils.lookup import Lookup
 LOOKUP = Lookup()
 
 class Player:
-    """ Holds information about a given player of the game (loaded from MatchRecord data). """
+    """ Holds information about a given player of the game (loaded from MatchReport data). """
     def __init__(self, player_id):
         self.player_id = player_id
         self.matches = []
@@ -265,7 +266,7 @@ class Match():
             for possible_rating in Rating.lookup_for(profile_id)[rating]:
                 if 0 < possible_rating.timestamp - started < 3600:
                     possibles.add(possible_rating.won_state)
-        except KeyError:
+        except (KeyError, RuntimeError):
             """ Thrown when there are no rating records matching that player's current rating. """
             pass
         if len(possibles) != 1: # we have a contradiction or no information
@@ -458,7 +459,7 @@ class Rating():
         """ Returns all ratings for a profile """
         data_file = Rating.data_file_template.format(profile_id)
         if not os.path.exists(data_file):
-            raise RuntimeError('No rating data available')
+            raise RuntimeError('No rating data available for', profile_id)
         ratings = []
         with open(data_file) as f:
             reader = csv.reader(f)
@@ -484,14 +485,23 @@ class User():
         self.name = data['name']
         self.rating = data['rating']
         self.game_count = data['games']
-        self.ratings = []
+        self.should_update = True
 
     @property
     def to_csv(self):
-        return [self.profile_id, self.name, self.rating, self.game_count,]
+        return [self.profile_id, self.name, self.rating, self.game_count, self.should_update]
+
+    def update(self, data):
+        self.should_update = self.game_count != data['games']
+        self.name = data['name']
+        self.rating = data['rating']
+        self.game_count = data['games']
 
     def from_csv(row):
-        return User({'profile_id': row[0], 'name': row[1], 'rating': int(row[2]), 'games': int(row[3])})
+        u = User({'profile_id': int(row[0]), 'name': row[1], 'rating': int(row[2]), 'games': int(row[3])})
+        if len(row) > 4:
+            u.should_update = row[4] == 'True'
+        return u
 
     def all():
         if not os.path.exists(User.data_file):
@@ -540,4 +550,5 @@ class CachedPlayer(Player):
         return players
 
 if __name__ == '__main__':
-    print(PlayerRating.ratings_for('model', 5))
+    for data_set_type in ('model', 'verification',):
+        PlayerRating.ratings_for(data_set_type, update=True)
