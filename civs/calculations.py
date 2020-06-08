@@ -102,14 +102,14 @@ class Civ:
         for map_name in sorted(maps_with_data):
             print(map_template.format(map_name, str(round(self.rankings[map_name], 3)), *[str(round(self.rankings['{}-{}'.format(map_name,rk)], 3)) for rk in rating_keys]))
             print(map_template.format(map_name, str(round(self.popularity[map_name], 3)), *[str(round(self.popularity['{}-{}'.format(map_name,rk)], 3)) for rk in rating_keys]))
-    def to_html(self, maps, rating_keys, bgcolor):
+    def civ_popularity_to_html(self, maps, rating_keys, bgcolor):
 
         html = ['\n<h3>{}</h3>'.format(self.name)]
-        mt_array = ['<tr><th>{0}</th><th class="{1}">{2}</th><th>&nbsp;</th>',] + ['<th class="{{3[{idx}]}}">{{4[{idx}]}}</th>'.format(idx=i) for i in range(len(rating_keys))] + ['</tr>']
+        mt_array = ['<tr><th style="width: 7em">{0}</th>',] + ['<th class="{{3[{idx}]}}">{{4[{idx}]}}</th>'.format(idx=i) for i in range(len(rating_keys))] + ['</tr>']
         header_template = ''.join(mt_array)
         html.append('<table>')
         html.append(header_template.format('Map Name', '', 'Overall', ['' for _ in rating_keys], [rk for rk in rating_keys]))
-        map_template = header_template.replace('<th>', '<td>').replace('</th>', '</td>').replace('<th class="', '<td class="data" style="background-color: ')
+        map_template = header_template.replace('<th style="', '<td style="').replace('</th>', '</td>').replace('<th class="', '<td class="data" style="background-color: ')
         map_dict = {}
 
         map_dict['All Maps'] = map_template.format('All', bgcolor(self.popularity['Overall']), self.rankings['Overall'], [bgcolor(self.popularity[rk]) for rk in rating_keys], [self.rankings[rk] for rk in rating_keys])
@@ -133,7 +133,7 @@ def civ_popularity_by_rating(players, map_name, edges):
     return counters
 
 def loaded_civs(data_set_type, max_maps=len(MAPS)):
-    """ Writes csv for civ popularities by ratings snapshot for every map type."""
+    """ Calculates civ popularities overall, by map, by rating bucket, and by map-rating combination."""
     # Setup
     civs = {}
     for k in CIVILIZATIONS:
@@ -144,7 +144,7 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
     for edge in edges:
         rating_keys.append('{}-{}'.format(start + 1, edge))
         start = edge - 50
-    rating_keys.append('{}+'.format(edges[-1] - 50))
+    rating_keys.append('{}+'.format(edges[-1] - 49))
     edges.append(10000)
     players = CachedPlayer.rated_players(data_set_type)
 
@@ -183,7 +183,38 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
                 civs[civ].popularity['{}-{}'.format(map_name, rating_keys[ctr_idx])] = ctr[civ]/total
     return civs, maps_with_data, rating_keys
 
-def to_html(civs, maps_with_data, rating_keys, bgcolor):
+def overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
+    """ Generates html table of overal popularity of civ per map """
+    # Build data arrays
+    civ_names = [civ for civ in sorted(civs)]
+    map_dict = {}
+    header_row = ['Map Name'] + civ_names
+    all_row = ['All',]
+    map_dict['All Maps'] = all_row
+    for civ_name in civ_names:
+        civ = civs[civ_name]
+        all_row.append((bgcolor(round(civ.popularity['Overall'], 3)), civ.rankings['Overall'],))
+    for map_name in maps:
+        row = [map_name]
+        map_dict[map_name] = row
+        for civ_name in civ_names:
+            civ = civs[civ_name]
+            row.append((bgcolor(round(civ.popularity[map_name], 3)), civ.rankings[map_name],))
+
+    # Format data as rows of html in proper order
+    html_rows = ['<h2>Overall Popularity of Civs per Map</h2>', '<table>']
+    ht_array = ['<tr>',] + ['<th>{{0[{}]}}</th>'.format(i) for i in range(len(header_row))] + ['</tr>']
+    header_template = ''.join(ht_array)
+    html_rows.append(header_template.format(header_row))
+
+    mt_array = ['<tr><td>{0[0]}</td>',] + ['<td class="data" style="background-color: {{0[{i}][0]}}">{{0[{i}][1]}}</td>'.format(i=i) for i in range(1, len(civ_names) + 1)] + ['</tr>']
+    map_template = ''.join(mt_array)
+    for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x)):
+        html_rows.append(map_template.format(map_dict[map_name]))
+    html_rows.append('</table>')
+    return '\n'.join(html_rows)
+def civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
+    """ Generates html representation of civ popularity. """
     with open('{}/civs/civ_popularity_data.html'.format(ROOT_DIR), 'w') as f:
         f.write("""<!doctype html>
 
@@ -203,8 +234,10 @@ def to_html(civs, maps_with_data, rating_keys, bgcolor):
 </head>
 <body>
 """)
+        f.write(overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor))
+        f.write('<h2>Popularity of Each Civ Segemented by Map and Ranking</h2>')
         for civ_name in sorted(civs):
-            f.write(civs[civ_name].to_html(maps_with_data, rating_keys, bgcolor))
+            f.write(civs[civ_name].civ_popularity_to_html(maps, rating_keys, bgcolor))
 
 class Similarity:
     def __init__(self, map_name, similarity_rating):
@@ -255,11 +288,13 @@ def map_similarity(civs, maps_with_data, rating_keys):
         print('{1[0][0]:15} ({1[0][1]:5.2f})  {1[1][0]:15} ({1[1][1]:5.2f}) - {0:15}'.format(map_name, match))
 
 def cache_results(data_set_type):
+    """ Pickles results so can do analysis without rerunning everything."""
     civs, maps_with_data, rating_keys = loaded_civs(data_set_type)
     with open(CACHED_TEMPLATE.format(data_set_type), 'wb') as f:
         pickle.dump([[CachedCiv(civ) for civ in civs.values()], maps_with_data, rating_keys], f)
 
 def cached_results(data_set_type):
+    """ Returns pickled results. Will generate pickle if not present. """
     cache_file = CACHED_TEMPLATE.format(data_set_type)
     if not os.path.exists(cache_file):
         cache_results(data_set_type)
@@ -290,4 +325,4 @@ if __name__ == '__main__':
     mapping = popularity_cdf(civs.values())
     def foo(x):
         return "hsl({}, 100%, 60%)".format((1 - mapping[round(x, 3)])*240)
-    to_html(civs, maps_with_data, rating_keys, foo)
+    civ_popularity_to_html(civs, maps_with_data, rating_keys, foo)
