@@ -186,7 +186,7 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
 def overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
     """ Generates html table of overal popularity of civ per map """
     # Build data arrays
-    civ_names = [civ for civ in sorted(civs)]
+    civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
     map_dict = {}
     header_row = ['Map Name'] + civ_names
     all_row = ['All',]
