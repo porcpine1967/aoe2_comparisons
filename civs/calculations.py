@@ -61,9 +61,9 @@ MAP_ORDER = [
     'Nomad',
     'Bog Islands',
     'Mediterranean',
+    'Continental',
     'Team Islands',
     'Islands',
-    'Continental',
 ]
 
 def default_ranking():
@@ -213,8 +213,66 @@ def overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
         html_rows.append(map_template.format(map_dict[map_name]))
     html_rows.append('</table>')
     return '\n'.join(html_rows)
-def civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
-    """ Generates html representation of civ popularity. """
+
+def civ_popularity_by_rating_to_html(civs, maps, rating_keys, bgcolor):
+    """ Generates popularity of individual civs segmented by map and rating."""
+    html_rows = ['<h2>Popularity of Civs on Maps by Rating</h2>',]
+    for rk in rating_keys:
+        civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
+        map_dict = {}
+        header_row = ['Map Name'] + civ_names
+        all_row = ['All',]
+        map_dict['All Maps'] = all_row
+        for civ_name in civ_names:
+            civ = civs[civ_name]
+            all_row.append((bgcolor(round(civ.popularity[rk], 3)), civ.rankings[rk],))
+        for map_name in maps:
+            row = [map_name]
+            map_dict[map_name] = row
+            for civ_name in civ_names:
+                civ = civs[civ_name]
+                row.append((bgcolor(round(civ.popularity['{}-{}'.format(map_name, rk)], 3)), civ.rankings['{}-{}'.format(map_name, rk)],))
+
+        # Format data as rows of html in proper order
+        html_rows.extend(['<h3>Popularity of Civs per Map for {}</h3>'.format(rk), '<table>'])
+        ht_array = ['<tr>',] + ['<th>{{0[{}]}}</th>'.format(i) for i in range(len(header_row))] + ['</tr>']
+        header_template = ''.join(ht_array)
+        html_rows.append(header_template.format(header_row))
+
+        mt_array = ['<tr><td style="width: 10em">{0[0]}</td>',] + ['<td class="data" style="background-color: {{0[{i}][0]}}">{{0[{i}][1]}}</td>'.format(i=i) for i in range(1, len(civ_names) + 1)] + ['</tr>']
+        map_template = ''.join(mt_array)
+        for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x)):
+            html_rows.append(map_template.format(map_dict[map_name]))
+        html_rows.append('</table>')
+    return '\n'.join(html_rows)
+
+
+def popularity_per_rating_to_html(civs, maps, rating_keys, bgcolor):
+    """ Generates html representation of each rating's popularity by map and civ. """
+    with open('{}/civs/rating_popularity_data.html'.format(ROOT_DIR), 'w') as f:
+        f.write("""<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Civilization Popularity per Rating Segmented by Map</title>
+  <meta name="description" content="AOE2 info">
+  <meta name="author" content="porcpine1967">
+  <link rel="stylesheet" href="../styles/normalize.css">
+  <style>
+      body {margin: 5em}
+      td.data { text-align: center; }
+      th { width: 4em; }
+  </style>
+</head>
+<body>
+""")
+        f.write(overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor))
+        f.write(civ_popularity_by_rating_to_html(civs, maps, rating_keys, bgcolor))
+
+def popularity_per_civ_to_html(civs, maps, rating_keys, bgcolor):
+    """ Generates html representation of each civ's popularity by map and rating. """
     with open('{}/civs/civ_popularity_data.html'.format(ROOT_DIR), 'w') as f:
         f.write("""<!doctype html>
 
@@ -234,7 +292,6 @@ def civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
 </head>
 <body>
 """)
-        f.write(overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor))
         f.write('<h2>Popularity of Each Civ Segemented by Map and Ranking</h2>')
         for civ_name in sorted(civs):
             f.write(civs[civ_name].civ_popularity_to_html(maps, rating_keys, bgcolor))
@@ -325,4 +382,5 @@ if __name__ == '__main__':
     mapping = popularity_cdf(civs.values())
     def foo(x):
         return "hsl({}, 100%, 60%)".format((1 - mapping[round(x, 3)])*240)
-    civ_popularity_to_html(civs, maps_with_data, rating_keys, foo)
+    popularity_per_civ_to_html(civs, maps_with_data, rating_keys, foo)
+    popularity_per_rating_to_html(civs, maps_with_data, rating_keys, foo)
