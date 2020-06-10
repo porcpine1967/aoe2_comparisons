@@ -492,7 +492,12 @@ class User():
         return [self.profile_id, self.name, self.rating, self.game_count, self.should_update]
 
     def update(self, data):
-        self.should_update = self.game_count != data['games']
+        should_update = self.game_count != data['games']
+        # If should have updated and ratings file not updated since last time users updated, don't change
+        if self.should_update and not should_update:
+            self.should_update = os.stat(User.data_file).st_mtime > os.stat(Rating.data_file_template.format(self.profile_id)).st_mtime
+        else:
+            self.should_update = should_update
         self.name = data['name']
         self.rating = data['rating']
         self.game_count = data['games']
