@@ -1,0 +1,44 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Impact of Rating Difference and Number of Matches on Map Choice in Age of Empires II Definitive Edition</title>
+  <meta name="description" content="The HTML5 Herald">
+  <meta name="author" content="porcpine1967">
+  <link rel="stylesheet" href="../styles/normalize.css">
+  <style>
+      body {margin: 5em}
+      th, td { border: 1px black solid; padding: 5px }
+      td { text-align: right }
+  </style>
+
+</head>
+<body>
+<h1>Impact of Rating Difference and Number of Matches on Map Choice in Age of Empires II Definitive Edition</h1>
+<h2>Introduction</h2>
+<p>Age of Empires II Definitive Edition (AOE2 DE) is a real-time strategy (RTS) game in which each player controls the economic and military activity of a "civilization" in competition (and possibly cooperation) with another player or group of players. Each of these competitions take place on one of a limited number of map types, and each map type encourages certain strategies over others. In this paper, I will be looking at the popularity of the various maps in one-on-one (1v1) matches in the "ranked" queue for each map, segmented by ranking and by number of matches played.</p>
+
+<h2>Methodology</h2>
+<p>The website <a href="https://aoe2.net/">AoE2.net</a> hosts an <a href="https://aoe2.net/#api">api</a> from which anyone can download match, rating, and player data. Starting with all the players currently listed in the 1v1 ranked "leaderboard", I downloaded all of the match information and historical rating changes of each user and all the match and historical rating changes of each of that player's opponents recursively.</p>
+
+<p>Note: the code for downloading the data, all subsequent data manipulations and statistical calclations, and map and table generation is available at <a href="https://github.com/porcpine1967/aoe2_comparisons">the github repository hosting this page</a>.
+<h2>Graph 1: Segmented by rating</h2>
+<p>AOE2 DE uses the elo rating system, and each player's rating changes with every game. Thus, in segmenting popularity by player rating, a player could have games at a rating in more than one segment. To determine the most appropriate rating segment for a user, I choose the median value from the group of five ordered ratings with the lowest standard deviation. In case of a tie in the standard deviation, I choose the group with higher ratings (<a href="https://github.com/porcpine1967/aoe2_comparisons/blob/master/utils/models.py#L32">code</a>).</p>
+
+<p>After finding the most appropriate rating for all players, I segment the players into buckets based on these ratings (<a href="https://github.com/porcpine1967/aoe2_comparisons/blob/master/civs/flourish.py#L265">code</a>). To avoid overcounting the favorites of those who play often, each player only gets 1 "point" to add to the overall score. However, I segment this point among all the matches the user has played when the player had a rating within the bucket parameters (<a href="https://github.com/porcpine1967/aoe2_comparisons/blob/master/utils/models.py#L69">code</a>). For example, if a player's most appropriate rating is in a bucket with ratings from 1000 to 1100, and this player played four matches when rated between those two points, and the maps chosen were Arabia (twice), Arena, and Alpine Lakes, Arabia would add .5 points to its popularity, Arena would add .25 points, and Alpine Lakes would also add .25 points. To smooth out the visualization, my buckets are rolling snapshots, thus all users are counted twice (except at the extremes).</p>
+
+<p>As we can see by the graph below, the relative popularity of each map changes very little with changes to ratings.</p>
+
+<div class="flourish-embed flourish-bar-chart-race" data-src="visualisation/2699616" data-url="https://flo.uri.sh/visualisation/2699616/embed"><script src="https://public.flourish.studio/resources/embed.js"></script></div>
+
+<h2>Graph 2: Segmented by number of matches played.</h2>
+<p>For this graph, I segment the players into buckets based on the number of matches the player has played (<a href="https://github.com/porcpine1967/aoe2_comparisons/blob/master/civs/flourish.py#L296">code</a>). I determined the ranges for the buckets so that each bucket has at least 2% of the total player population. As above, to avoid overcounting the favorites of those who play often, each player only gets 1 "point" to add to the overall score. However, I segment this point among all the matches the user has played (<a href="https://github.com/porcpine1967/aoe2_comparisons/blob/master/utils/models.py#L69">code</a>). For example, if a player played four matches, and the maps chosen were Arabia (twice), Arena, and Alpine Lakes, Arabia would add .5 points to its popularity, Arena would add .25 points, and Alpine Lakes would also add .25 points.</p>
+
+<p>As we can see by the graph below, the relative popularity of each map changes very little with changes to number of matches played. Likewise, it is similar to the graph above.</p>
+
+<div class="flourish-embed flourish-bar-chart-race" data-src="visualisation/2730438" data-url="https://flo.uri.sh/visualisation/2730438/embed"><script src="https://public.flourish.studio/resources/embed.js"></script></div>
+
+</body>
+</html>
