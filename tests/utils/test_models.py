@@ -1,3 +1,4 @@
+import os
 import pathlib
 
 ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
@@ -120,13 +121,27 @@ def test_user_to_from_csv():
     assert user_row == [str(x) for x in user.to_csv]
 
 def test_user_should_update():
-    user_row = [ '196240','TheViper','2318','399', ]
-    user_data = { 'name': 'TheViper', 'rating': 2318, 'games': 399, }
+    profile_id = '196240'
+    user_change_time = os.stat(utils.models.User.data_file).st_mtime
+    time_change = (user_change_time + 1, user_change_time + 1,)
+    ratings_file = utils.models.Rating.data_file_template.format(profile_id)
+    # Make sure ratings file updated since users file
+    os.utime(ratings_file, time_change)
+    user_row = [ profile_id, 'TheViper', '2318', '399', ]
     user = utils.models.User.from_csv(user_row)
+    # Default user should update
     assert user.should_update
+    # No data change so should not update
+    user_data = { 'name': user_row[1], 'rating': int(user_row[2]), 'games': int(user_row[3]), }
     user.update(user_data)
     assert not user.should_update
+    # Data changed so should update
     user_data['games'] += 1
+    user.update(user_data)
+    assert user.should_update
+
+    # Data not updated, but ratings file users file younger than ratings file, so should update
+    os.utime(ratings_file, tuple([t - 2 for t in time_change]))
     user.update(user_data)
     assert user.should_update
 
