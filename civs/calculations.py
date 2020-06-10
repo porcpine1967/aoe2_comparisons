@@ -183,7 +183,7 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
                 civs[civ].popularity['{}-{}'.format(map_name, rating_keys[ctr_idx])] = ctr[civ]/total
     return civs, maps_with_data, rating_keys
 
-def overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
+def overall_civ_popularity_to_html(civs, maps, bgcolor):
     """ Generates html table of overal popularity of civ per map """
     # Build data arrays
     civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
@@ -217,8 +217,8 @@ def overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor):
 def civ_popularity_by_rating_to_html(civs, maps, rating_keys, bgcolor):
     """ Generates popularity of individual civs segmented by map and rating."""
     html_rows = ['<h2>Popularity of Civs on Maps by Rating</h2>',]
+    civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
     for rk in rating_keys:
-        civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
         map_dict = {}
         header_row = ['Map Name'] + civ_names
         all_row = ['All',]
@@ -268,7 +268,7 @@ def popularity_per_rating_to_html(civs, maps, rating_keys, bgcolor):
 </head>
 <body>
 """)
-        f.write(overall_civ_popularity_to_html(civs, maps, rating_keys, bgcolor))
+        f.write(overall_civ_popularity_to_html(civs, maps, bgcolor))
         f.write(civ_popularity_by_rating_to_html(civs, maps, rating_keys, bgcolor))
 
 def popularity_per_civ_to_html(civs, maps, rating_keys, bgcolor):
