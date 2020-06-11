@@ -430,6 +430,7 @@ class Match():
 class Rating():
     """Holds each change of rating for a single player (loaded from api with old rating extrapolated)"""
     header = ['Profile Id', 'Rating', 'Old Rating', 'Wins', 'Losses', 'Drops', 'Timestamp', 'Won State']
+    data_dir = '{}/data'.format(ROOT_DIR)
     data_file_template = '{}/data/ratings_for_{{}}.csv'.format(ROOT_DIR)
     def __init__(self, profile_id, data):
         self.profile_id = profile_id
@@ -492,12 +493,16 @@ class User():
         return [self.profile_id, self.name, self.rating, self.game_count, self.should_update]
 
     def update(self, data):
-        should_update = self.game_count != data['games']
         # If should have updated and ratings file not updated since last time users updated, don't change
-        if self.should_update and not should_update:
-            self.should_update = os.stat(User.data_file).st_mtime > os.stat(Rating.data_file_template.format(self.profile_id)).st_mtime
+        rating_file = Rating.data_file_template.format(self.profile_id)
+        if not os.path.exists(rating_file):
+            self.should_update = True
         else:
-            self.should_update = should_update
+            should_update = self.game_count != data['games']
+            if self.should_update and not should_update:
+                self.should_update = os.stat(User.data_file).st_mtime > os.stat(rating_file).st_mtime
+            else:
+                self.should_update = should_update
         self.name = data['name']
         self.rating = data['rating']
         self.game_count = data['games']

@@ -92,7 +92,7 @@ class Civ:
     def print_info(self, maps_with_data, rating_keys):
         mt_array = ['{:18}', '{:^9s}'] + ['{:^9s}' for _ in rating_keys]
         map_template = ' '.join(mt_array)
-        
+
         print('*'*(len(self.name)))
         print(self.name)
         print('*'*(len(self.name)))
@@ -118,7 +118,6 @@ class Civ:
         html.extend([map_dict[map_name] for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x))])
         html.append('</table>')
         return '\n'.join(html)
-        
 
 def civ_popularity_by_rating(players, map_name, edges):
     start = 0
@@ -246,7 +245,6 @@ def civ_popularity_by_rating_to_html(civs, maps, rating_keys, bgcolor):
         html_rows.append('</table>')
     return '\n'.join(html_rows)
 
-
 def popularity_per_rating_to_html(civs, maps, rating_keys, bgcolor):
     """ Generates html representation of each rating's popularity by map and civ. """
     with open('{}/civs/rating_popularity_data.html'.format(ROOT_DIR), 'w') as f:
@@ -326,7 +324,7 @@ def map_similarity(civs, maps_with_data, rating_keys):
                 except KeyError:
                     check_map_data = [civ.popularity['{}-{}'.format(map_to_check, rk)] for rk in rating_keys]
                     map_data_lookup[map_to_check] = check_map_data
-            
+
                 map_diff = sum(map(minus, zip(map_data, check_map_data)))
                 if map_diff < similarity_rating:
                     similarity_rating = map_diff
@@ -361,7 +359,7 @@ def cached_results(data_set_type):
         for cc in cached_civs:
             civs[cc.name] = Civ.from_cache(cc)
     return civs, maps_with_data, rating_keys
-        
+
 def popularity_cdf(civs):
     ctr = Counter()
     for civ in civs:

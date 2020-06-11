@@ -413,7 +413,6 @@ def min_max_rating_per_map(data_set_type):
                 top = '{:>5}: ({:5})'.format(k, counter[k])
         print('{:18}: {} - {}'.format(map_name, bottom, top))
 
-    
 if __name__ == '__main__':
     min_max_rating_per_map('model')
     # for i in range(188, 304):

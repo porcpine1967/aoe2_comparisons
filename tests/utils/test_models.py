@@ -145,6 +145,13 @@ def test_user_should_update():
     user.update(user_data)
     assert user.should_update
 
+def test_user_should_update_no_file():
+    user_row = [ 0, 'TheViper', '2318', '399', ]
+    user = utils.models.User.from_csv(user_row)
+    user_data = { 'name': user_row[1], 'rating': int(user_row[2]), 'games': int(user_row[3]), }
+    user.update(user_data)
+    assert user.should_update
+
 # MatchReport
 def test_all():
     utils.models.MatchReport.all('test')

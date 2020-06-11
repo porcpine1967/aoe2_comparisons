@@ -13,6 +13,8 @@ import utils.models
 def set_model_data_file_templates():
     if not '/tests' in utils.models.Rating.data_file_template:
         utils.models.Rating.data_file_template = utils.models.Rating.data_file_template.replace('/data', '/tests/data')
+    if not '/tests' in utils.models.Rating.data_dir:
+        utils.models.Rating.data_dir = utils.models.Rating.data_dir.replace('/data', '/tests/data')
     if not '/tests' in utils.models.User.data_file:
         utils.models.User.data_file = utils.models.User.data_file.replace('/data', '/tests/data')
 
@@ -37,3 +39,6 @@ def test_fetch_users(requests_mock):
             assert not user.should_update
         else:
             assert user.should_update
+
+def test_profiles_from_files():
+    assert len(utils.download.profiles_from_files('ratings')) == 4

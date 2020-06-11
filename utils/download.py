@@ -144,13 +144,14 @@ def ratings(profile_id, update=False):
         writer.writerows([m.to_csv for m in r1v1.values()])
 
 def profiles_from_files(file_prefix):
-    profile_pattern = re.compile(r'{}_for_([0-9]+)\.csv'.format(file_prefix))
-    profiles = set()
+    profile_pattern = re.compile(r'{}_for_([0-9]+)\.csv$'.format(file_prefix))
+    profiles = []
     ten_hours_ago = time.time() - 60*60*10
-    for filename in os.listdir('{}/data'.format(ROOT_DIR)):
-        m = profile_pattern.match(filename)
+    # Get paths in order of modified time so oldest files first
+    for filename in sorted(pathlib.Path(Rating.data_dir).iterdir(), key=os.path.getmtime):
+        m = profile_pattern.search(str(filename))
         if m:
-            profiles.add(m.group(1))
+            profiles.append(m.group(1))
     return profiles
 
 def new_matches_and_ratings(downloaded, checked):
@@ -166,7 +167,7 @@ def new_matches_and_ratings(downloaded, checked):
         checked.add(profile_id)
 
     print('Downloading {} profiles'.format(len(to_download)))
-    with Pool(10) as p:
+    with Pool() as p:
         p.map(both, to_download)
     for profile_id in to_download:
         downloaded.add(profile_id)
@@ -190,17 +191,23 @@ def reconcile():
     for match in match_ids:
         if match not in rating_ids:
             ratings(match)
-    
+
 def update():
+    file_profiles = profiles_from_files('ratings')
+    # Sort by last modified, so files updated longest ago are updated first
+    def priority(profile_id):
+        if profile_id not in file_profiles:
+            return 0
+        return file_profiles.index(profile_id)
     users(True)
     all_users = User.all()
-    user_list = [user.profile_id for user in all_users if user.should_update]
+    user_list = sorted([str(user.profile_id) for user in all_users if user.should_update], key=priority)
+    checked = set(profiles_from_files('matches'))
     print('Downloading {} profiles'.format(len(user_list)))
-    with Pool(10) as p:
+    with Pool() as p:
         p.map(both_force, user_list)
     downloaded = set([u.profile_id for u in all_users])
-    checked = profiles_from_files('matches')
-    new_matches_and_ratings(downloaded.union(checked), checked)
+    new_matches_and_ratings(downloaded, checked)
 
 if __name__ == '__main__':
-    reconcile()
+    update()

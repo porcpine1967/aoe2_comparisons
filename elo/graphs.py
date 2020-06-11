@@ -158,7 +158,5 @@ def best_rating_by_number_of_matches(data_set_type):
     slope, intercept, r_value, p_value, std_err = stats.linregress(slope_x, slope_y)
     print('  Intercept: {:.3f}, Slope: {:.4f}, R value: {:.3f}, p value: {}, Std Err: {}'.format(intercept, slope, r_value, p_value, std_err))
 
-    
-
 if __name__ == '__main__':
     player_rating_trajectories('test', 5)
