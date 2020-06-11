@@ -112,7 +112,7 @@ class Civ:
         map_template = header_template.replace('<th style="', '<td style="').replace('</th>', '</td>').replace('<th class="', '<td class="data" style="background-color: ')
         map_dict = {}
 
-        map_dict['All Maps'] = map_template.format('All', bgcolor(self.popularity['Overall']), self.rankings['Overall'], [bgcolor(self.popularity[rk]) for rk in rating_keys], [self.rankings[rk] for rk in rating_keys])
+#        map_dict['All Maps'] = map_template.format('All', bgcolor(self.popularity['Overall']), self.rankings['Overall'], [bgcolor(self.popularity[rk]) for rk in rating_keys], [self.rankings[rk] for rk in rating_keys])
         for map_name in maps:
             map_dict[map_name] = map_template.format(map_name, bgcolor(self.popularity[map_name]), round(self.rankings[map_name], 3), [bgcolor(self.popularity['{}-{}'.format(map_name,rk)]) for rk in rating_keys], [round(self.rankings['{}-{}'.format(map_name,rk)], 3) for rk in rating_keys])
         html.extend([map_dict[map_name] for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x))])
@@ -189,7 +189,7 @@ def overall_civ_popularity_to_html(civs, maps, bgcolor):
     map_dict = {}
     header_row = ['Map Name'] + civ_names
     all_row = ['All',]
-    map_dict['All Maps'] = all_row
+#    map_dict['All Maps'] = all_row
     for civ_name in civ_names:
         civ = civs[civ_name]
         all_row.append((bgcolor(round(civ.popularity['Overall'], 3)), civ.rankings['Overall'],))
@@ -221,7 +221,7 @@ def civ_popularity_by_rating_to_html(civs, maps, rating_keys, bgcolor):
         map_dict = {}
         header_row = ['Map Name'] + civ_names
         all_row = ['All',]
-        map_dict['All Maps'] = all_row
+#        map_dict['All Maps'] = all_row
         for civ_name in civ_names:
             civ = civs[civ_name]
             all_row.append((bgcolor(round(civ.popularity[rk], 3)), civ.rankings[rk],))
@@ -361,6 +361,7 @@ def cached_results(data_set_type):
     return civs, maps_with_data, rating_keys
 
 def popularity_cdf(civs):
+    """ CDF of popularities to emphasize minor differences and flatten major ones. """
     ctr = Counter()
     for civ in civs:
         for popularity in civ.popularity.values():
@@ -373,12 +374,32 @@ def popularity_cdf(civs):
         mapping[round(popularity, 3)] = rt/total
     return mapping
 
+def popularity_table(mapping, bgcolor):
+    """ html table of color grades of popularity. """
+    data = {}
+    for i in range(0, 241, 30):
+        top = -1
+        for k in sorted(mapping, reverse=True):
+            hue = (1 - mapping[k]) * 240
+            if hue > i - 1 and top < 0:
+                top = k
+                data[i] = top
+            if hue > i + 30:
+                break
+        data[240] = 0
+    html_rows = ['<table>', '<tr><th>Popularity</th><th>Color</th></tr>']
+    for hue in sorted(data):
+        html_rows.append('<tr><td>{:.3f}</td><td style="width: 7em; background-color: {}">&nbsp;</td></tr>'.format(data[hue], bgcolor(data[hue])))
+    html_rows.append('</table>')
+    return html_rows
+
 if __name__ == '__main__':
     data_set_type = 'model'
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
     half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
     mapping = popularity_cdf(civs.values())
-    def foo(x):
+    def bgcolor(x):
         return "hsl({}, 100%, 60%)".format((1 - mapping[round(x, 3)])*240)
-    popularity_per_civ_to_html(civs, maps_with_data, rating_keys, foo)
-    popularity_per_rating_to_html(civs, maps_with_data, rating_keys, foo)
+    popularity_per_civ_to_html(civs, maps_with_data, half_keys, bgcolor)
+    popularity_per_rating_to_html(civs, maps_with_data, ['1-650', '1001-1100', '1651+',], bgcolor)
+    popularity_table(mapping, bgcolor)
