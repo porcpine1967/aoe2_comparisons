@@ -57,10 +57,9 @@ class Player:
         """ Proportionally adds civs within range to ctr. """
         civ_ctr = Counter()
         for m in self.matches:
-            if m.player_1 == self.player_id and start < m.rating_1 <= edge and (map_name == 'all' or m.map == map_name):
-                civ_ctr[m.civ_1] += 1
-            elif m.player_2 == self.player_id and start < m.rating_2 <= edge and (map_name == 'all' or m.map == map_name):
-                civ_ctr[m.civ_2] += 1
+            civ, rating, _ = m.info_for(self.player_id)
+            if start < rating <= edge and (map_name == 'all' or m.map == map_name):
+                civ_ctr[civ] += 1
         total = float(sum(civ_ctr.values()))
         for civ, count in civ_ctr.items():
             ctr[civ] += count/total
@@ -70,22 +69,13 @@ class Player:
         """ Proportionally adds maps within range to ctr. """
         map_ctr = Counter()
         for m in self.matches:
-            map_ctr[m.map] += 1
+            _, rating, _ = m.info_for(self.player_id)
+            if start < rating <= edge:
+                map_ctr[m.map] += 1
         total = float(sum(map_ctr.values()))
-        for map, count in map_ctr.items():
-            ctr[map] += count/total
-
-    def favorite_civ(self, start, edge):
-        """ Choose the favorite civilization chosen when player rating between start and edge."""
-        civ_ctr = Counter()
-        for m in self.matches:
-            if m.player_1 == self.player_id and start < m.rating_1 <= edge:
-                civ_ctr[m.civ_1] += 1
-            elif m.player_2 == self.player_id and start < m.rating_2 <= edge:
-                civ_ctr[m.civ_2] += 1
-        if not civ_ctr:
-            return
-        return civ_ctr.most_common(1)[0][0]
+        for m, count in map_ctr.items():
+            ctr[m] += count/total
+        return bool(map_ctr)
 
     def ordered_ratings(self, ordering):
         r = []
@@ -94,20 +84,16 @@ class Player:
         else:
             return self.ratings
         for m in matches:
-            if m.player_1 == self.player_id:
-                r.append(m.rating_1)
-            elif m.player_2 == self.player_id:
-                r.append(m.rating_2)
+            _, rating, _ = m.info_for(self.player_id)
+            r.append(rating)
         return [rating for rating in r if rating > 100]
 
     @property
     def ratings(self):
         r = []
         for m in self.matches:
-            if m.player_1 == self.player_id:
-                r.append(m.rating_1)
-            elif m.player_2 == self.player_id:
-                r.append(m.rating_2)
+            _, rating, _ = m.info_for(self.player_id)
+            r.append(rating)
         return [rating for rating in r if rating > 100]
 
     @property
@@ -121,18 +107,16 @@ class Player:
         if not self.matches:
             return None
         m = self.latest_match
-        if m.player_1 == self.player_id:
-            return m.rating_1
-        return m.rating_2
+        _, rating, _ = m.info_for(self.player_id)
+        return rating
 
     @property
     def latest_civ(self):
         if not self.matches:
             return None
         m = self.latest_match
-        if m.player_1 == self.player_id:
-            return m.civ_1
-        return m.civ_2
+        civ, _, _ = m.info_for(self.player_id)
+        return civ
 
     @property
     def maps(self):
@@ -171,6 +155,22 @@ class MatchReport():
     @property
     def players(self):
         return (self.player_1, self.player_2,)
+
+    def info_for(self, player_id):
+        won_state = 'na'
+        if player_id == self.player_1:
+            if self.winner == 1:
+                won_state = 'won'
+            elif self.winner == 2:
+                won_state = 'lost'
+            return self.civ_1, self.rating_1, won_state
+        if player_id == self.player_2:
+            if self.winner == 2:
+                won_state = 'won'
+            elif self.winner == 1:
+                won_state = 'lost'
+            return self.civ_2, self.rating_2, won_state
+        return None, None, None
 
     def rating_edges(data_set_type, map_type, split, exclude_mirror=True):
         ratings = []
