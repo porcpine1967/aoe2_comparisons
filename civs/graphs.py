@@ -72,8 +72,8 @@ def default_ranking():
 def default_popularity():
     return 0
 
-def to_table(data, xlabels, ylabels, row_label_header=''):
-    """ Formats data into an html table. Returns a string
+def to_heatmap_table(data, xlabels, ylabels, row_label_header, normalize):
+    """ Formats data into an html table with heatmap colors. Returns a string
     data: 2-dimensional array of heatmap number (0.0-1.0) and text
     xlabels: labels for headers
     ylabels: labels for rows. """
@@ -83,34 +83,44 @@ def to_table(data, xlabels, ylabels, row_label_header=''):
     html_rows.append(''.join(['<tr><th>{}</th>'.format(row_label_header)] + ['<th class="xlabel">{}</th>'.format(l) for l in xlabels] + ['</tr>']))
     # Rows
     for idx, row in enumerate(data):
-        row_info = ['<tr><td class="ylabel">{}</td>'.format(ylabels[idx]),]
-        for heatmap, value in row:
-            row_info.append('<td class="data" style="background-color: hsl({}, 100%, 60%)">{}</td>'.format((1 - heatmap)*240, value))
-        row_info.append('</tr>')
-        html_rows.append(''.join(row_info))
+        html_rows.append(to_heatmap_row(row, ylabels[idx], normalize))
     html_rows.append('</table>')
     return '\n'.join(html_rows)
 
+def to_heatmap_row(row, ylabel, normalize):
+    row_info = ['<tr><td class="ylabel">{}</td>'.format(ylabel),]
+    for heatmap, value in row:
+        row_info.append('<td class="data" style="background-color: hsl({}, 100%, 60%)">{}</td>'.format((1 - normalize(heatmap))*240, value))
+    row_info.append('</tr>')
+    return ''.join(row_info)
+
 class CachedCiv:
+    """ To avoid serialization problems, same as civ but no functions. """
     def __init__(self, civ):
         self.name = civ.name
         self.rankings = civ.rankings
         self.popularity = civ.popularity
+        self.totals = civ.totals
 
 class Rankable:
+    """ Derived supercalss from Civ so get similar functionality for Map."""
     def __init__(self, name):
         self.name = name
         self.rankings = defaultdict(default_ranking)
         self.popularity = defaultdict(default_popularity)
+        self.totals = defaultdict(default_popularity)
 
 class Map(Rankable):
+    """ Simple object for holding rankable data for maps. """
     pass
 
 class Civ(Rankable):
+    """ Holds rankable data for a civ. """
     def from_cache(cached_civ):
         civ = Civ(cached_civ.name)
         civ.rankings = cached_civ.rankings
         civ.popularity = cached_civ.popularity
+        civ.totals = cached_civ.totals
         return civ
 
     def print_info(self, maps_with_data, rating_keys):
@@ -126,7 +136,7 @@ class Civ(Rankable):
         for map_name in sorted(maps_with_data):
             print(map_template.format(map_name, str(round(self.rankings[map_name], 3)), *[str(round(self.rankings['{}-{}'.format(map_name,rk)], 3)) for rk in rating_keys]))
             print(map_template.format(map_name, str(round(self.popularity[map_name], 3)), *[str(round(self.popularity['{}-{}'.format(map_name,rk)], 3)) for rk in rating_keys]))
-    def civ_popularity_to_html(self, maps, rating_keys, mapping):
+    def map_x_rating_heatmap_table(self, maps, rating_keys, normalize):
         html = ['\n<h3>{}</h3>'.format(self.name)]
         map_dict = {}
 
@@ -135,11 +145,23 @@ class Civ(Rankable):
         data = []
         for map_name in sorted(set(maps), key=lambda x: MAP_ORDER.index(x)):
             ylabels.append(map_name)
-            data.append([(mapping[round(self.popularity['{}-{}'.format(map_name, rk)], 3)], self.rankings['{}-{}'.format(map_name, rk)],) for rk in rating_keys])
-        html.append(to_table(data, xlabels, ylabels, 'Map Name'))
+            data.append([(self.popularity['{}-{}'.format(map_name, rk)], self.rankings['{}-{}'.format(map_name, rk)],) for rk in rating_keys])
+        html.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', normalize))
         return '\n'.join(html)
 
-def civ_popularity_by_rating(players, map_name, edges):
+    def heatmap_rating_data(self, map_name, rating_keys):
+        row = [(self.popularity['{}-{}'.format(map_name, rk)],
+                    self.rankings['{}-{}'.format(map_name, rk)]) for rk in rating_keys]
+        return row
+
+def civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges):
+    """ Returns an array of counters, each of which represents the cumulative proportional popularity of a civilization
+    for every rated player for matches played when holding a rating between the edges. Note, a player is only checked
+    if the player's "best rating" falls within the edges.
+    players: the list of players to evaluate
+    map_name: which map to build the counters for. 'all' will ignore map as a filter
+    edges: an array of edges in which to delineate ratings. First edge should be greater than zero, so first "bucket"
+    will be from 1 to edges[0], second edge from edges[0] to edges[1], finishing at edges[-2] to edges[-1]."""
     start = 0
     counters = []
     for edge in edges:
@@ -151,8 +173,9 @@ def civ_popularity_by_rating(players, map_name, edges):
         start = edge - 50
     return counters
 
-def loaded_civs(data_set_type, max_maps=len(MAPS)):
-    """ Calculates civ popularities overall, by map, by rating bucket, and by map-rating combination."""
+def rloaded_civs(data_set_type, max_maps=len(MAPS)):
+    """ Calculates civ popularities overall, by map, by rating bucket, and by map-rating combination.
+    returns civs, the maps that have data, and the rating keys available in the civs."""
     # Setup
     civs = {}
     for k in CIVILIZATIONS:
@@ -168,42 +191,46 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
     players = CachedPlayer.rated_players(data_set_type)
 
     # Calculate overall popularity
-    for ctr in civ_popularity_by_rating(players, 'all', [10000]):
+    for ctr in civ_popularity_counters_for_map_bucketed_by_rating(players, 'all', [10000]):
         total = sum(ctr.values())
         for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
             civs[civ].rankings['Overall'] = idx + 1
             civs[civ].popularity['Overall'] = ctr[civ]/total
-
+            civs[civ].totals['Overall'] = total
     # # Calculate overall popularity per rating bucket
-    for ctr_idx, ctr in enumerate(civ_popularity_by_rating(players, 'all', edges)):
+    for ctr_idx, ctr in enumerate(civ_popularity_counters_for_map_bucketed_by_rating(players, 'all', edges)):
         total = sum(ctr.values())
         for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
             civs[civ].rankings[rating_keys[ctr_idx]] = idx + 1
             civs[civ].popularity[rating_keys[ctr_idx]] = ctr[civ]/total
+            civs[civ].totals[rating_keys[ctr_idx]] = total
 
     # Calculate overall popularity by map
     maps_with_data = []
     for map_name in MAPS:
-        for ctr in civ_popularity_by_rating(players, map_name, [10000]):
+        for ctr in civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, [10000]):
             if ctr:
                 maps_with_data.append(map_name)
                 total = sum(ctr.values())
             for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
                 civs[civ].rankings[map_name] = idx + 1
                 civs[civ].popularity[map_name] = ctr[civ]/total
+                civs[civ].totals[map_name] = total
+
         if len(maps_with_data) > max_maps:
             break
     # Calculate overall popularity by map by rating bucket
     for map_name in maps_with_data:
-        for ctr_idx, ctr in enumerate(civ_popularity_by_rating(players, map_name, edges)):
+        for ctr_idx, ctr in enumerate(civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges)):
             total = sum(ctr.values())
             for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
                 civs[civ].rankings['{}-{}'.format(map_name, rating_keys[ctr_idx])] = idx + 1
                 civs[civ].popularity['{}-{}'.format(map_name, rating_keys[ctr_idx])] = ctr[civ]/total
+                civs[civ].totals['{}-{}'.format(map_name, rating_keys[ctr_idx])] = total
     return civs, maps_with_data, rating_keys
 
-def overall_civ_popularity_to_html(civs, maps, mapping):
-    """ Generates html table of overal popularity of civ per map """
+def civs_x_maps_heatmap_table(civs, maps, normalize):
+    """ Returns a single heatmap html table of civs x maps """
     # Build data arrays
     civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
     map_dict = {}
@@ -213,7 +240,7 @@ def overall_civ_popularity_to_html(civs, maps, mapping):
         map_dict[map_name] = row
         for civ_name in civ_names:
             civ = civs[civ_name]
-            row.append((mapping[round(civ.popularity[map_name], 3)], civ.rankings[map_name],))
+            row.append((civ.popularity[map_name], civ.rankings[map_name],))
 
     # Format data as rows of html in proper order
     html_rows = ['<h2>Overall Popularity of Civs per Map</h2>',]
@@ -223,11 +250,11 @@ def overall_civ_popularity_to_html(civs, maps, mapping):
     for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x)):
         ylabels.append(map_name)
         data.append(map_dict[map_name])
-    html_rows.append(to_table(data, xlabels, ylabels, 'Map Name'))
+    html_rows.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', normalize))
     return '\n'.join(html_rows)
 
-def civ_popularity_by_rating_to_html(civs, maps, rating_keys, mapping):
-    """ Generates popularity of individual civs segmented by map and rating."""
+def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normalize):
+    """ Returns a set of heatmap html tables of civs x maps, one table for every rating bucket."""
     html_rows = ['<h2>Popularity of Civs on Maps by Rating</h2>',]
     civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
     for rk in rating_keys:
@@ -238,7 +265,7 @@ def civ_popularity_by_rating_to_html(civs, maps, rating_keys, mapping):
             map_dict[map_name] = row
             for civ_name in civ_names:
                 civ = civs[civ_name]
-                row.append((mapping[round(civ.popularity['{}-{}'.format(map_name, rk)], 3)], civ.rankings['{}-{}'.format(map_name, rk)],))
+                row.append((civ.popularity['{}-{}'.format(map_name, rk)], civ.rankings['{}-{}'.format(map_name, rk)],))
 
         # Format data as rows of html in proper order
         html_rows.append('<h3>Popularity of Civs per Map for {}</h3>'.format(rk))
@@ -248,10 +275,10 @@ def civ_popularity_by_rating_to_html(civs, maps, rating_keys, mapping):
         for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x)):
             ylabels.append(map_name)
             data.append(map_dict[map_name])
-        html_rows.append(to_table(data, xlabels, ylabels, 'Map Name'))
+        html_rows.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', normalize))
     return '\n'.join(html_rows)
 
-def popularity_per_rating_to_html(civs, maps, rating_keys, mapping):
+def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, normalize):
     """ Generates html representation of each rating's popularity by map and civ. """
     with open('{}/civs/rating_popularity_data.html'.format(ROOT_DIR), 'w') as f:
         f.write("""<!doctype html>
@@ -272,10 +299,10 @@ def popularity_per_rating_to_html(civs, maps, rating_keys, mapping):
 </head>
 <body>
 """)
-        f.write(overall_civ_popularity_to_html(civs, maps, mapping))
-        f.write(civ_popularity_by_rating_to_html(civs, maps, rating_keys, mapping))
+        f.write(civs_x_maps_heatmap_table(civs, maps, normalize))
+        f.write(civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normalize))
 
-def popularity_per_civ_to_html(civs, maps, rating_keys, mapping, data_set_type):
+def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, data_set_type):
     """ Generates html representation of each civ's popularity by map and rating. """
     with open('{}/civs/civ_popularity_data.html'.format(ROOT_DIR), 'w') as f:
         f.write("""<!doctype html>
@@ -296,11 +323,48 @@ def popularity_per_civ_to_html(civs, maps, rating_keys, mapping, data_set_type):
 </head>
 <body>
 """)
-        f.write(map_popularity(data_set_type, rating_keys))
-        f.write('<h2>Popularity of Each Civ Segemented by Map and Ranking</h2>')
+        f.write(all_civs_map_x_rating_heatmap_table(data_set_type, rating_keys))
+        f.write('<h2>Popularity of Each Civ Segmented by Map and Ranking</h2>')
         for civ_name in sorted(civs):
-            f.write(civs[civ_name].civ_popularity_to_html(maps, rating_keys, mapping))
+            f.write(civs[civ_name].map_x_rating_heatmap_table(maps, rating_keys, normalize))
 
+def write_civs_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize):
+    """ Generates html representation of each map's civ popularity by rating. """
+    with open('{}/civs/map_popularity_data.html'.format(ROOT_DIR), 'w') as f:
+        f.write("""<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Civilization Rankings per Rating for Each Map</title>
+  <meta name="description" content="AOE2 info">
+  <meta name="author" content="porcpine1967">
+  <link rel="stylesheet" href="../styles/normalize.css">
+  <style>
+      body {margin: 5em}
+      td.data { text-align: center; }
+      th { width: 4em; }
+  </style>
+</head>
+<body>
+""")
+        f.write('<h2>Popularity of Each Civ by Rating per Map</h2>\n')
+        civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
+        total_civ = list(civs.values())[0]
+        for map_name in sorted(maps, key=lambda x: total_civ.totals[x], reverse=True):
+            civ_popularities = [civ.popularity['{}-{}'.format(map_name, rk)] for rk in rating_keys for civ in civs.values()]
+            max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)-1]
+            def new_normalize(x):
+                if x > max_value:
+                    return 1
+                return x/max_value
+            total = int(sum([total_civ.totals['{}-{}'.format(map_name, rk)] for rk in rating_keys]))
+            f.write('<h3>{} (n={:,})</h3>\n'.format(map_name, total))
+            data = []
+            for civ_name in civ_names:
+                data.append(civs[civ_name].heatmap_rating_data(map_name, rating_keys))
+            f.write(to_heatmap_table(data, rating_keys, civ_names, 'Civilization', new_normalize))
 class Similarity:
     def __init__(self, map_name, similarity_rating):
         self.map_name = map_name
@@ -333,6 +397,7 @@ def map_similarity(civs, maps_with_data, rating_keys):
                     map_data_lookup[map_to_check] = check_map_data
 
                 map_diff = sum(map(minus, zip(map_data, check_map_data)))
+
                 if map_diff < similarity_rating:
                     similarity_rating = map_diff
                     most_similar = Similarity(map_to_check, similarity_rating)
@@ -375,14 +440,14 @@ def popularity_cdf(civs):
             ctr[round(popularity, 3)] += 1
     rt = 0
     total = float(sum(ctr.values()))
-    mapping = {}
+    mapping = {0:0}
     for popularity in sorted(ctr):
         rt += ctr[popularity]
         mapping[round(popularity, 3)] = rt/total
     return mapping
 
-def popularity_table(mapping):
-    """ html table of color grades of popularity. """
+def heatmap_key_table(mapping):
+    """ html table of color grades of a given mapping. Assumes keys of map are .3f """
     data = []
     xlabels = ('Color',)
     ylabels = []
@@ -396,9 +461,15 @@ def popularity_table(mapping):
                 ylabels.append('{:.3f}'.format(top))
             if hue > i + 30:
                 break
-    return to_table(data, xlabels, ylabels, 'Popularity')
+    return to_heatmap_table(data, xlabels, ylabels, 'Popularity')
 
-def map_popularity_by_rating(players, edges):
+def map_popularity_counters_bucketed_by_rating(players, edges):
+    """ Returns an array of counters, each of which represents the cumulative proportional popularity of a map
+    for every rated player for matches played when holding a rating between the edges. Note, a player is only checked
+    if the player's "best rating" falls within the edges.
+    players: the list of players to evaluate
+    edges: an array of edges in which to delineate ratings. First edge should be greater than zero, so first "bucket"
+    will be from 1 to edges[0], second edge from edges[0] to edges[1], finishing at edges[-2] to edges[-1]."""
     start = 0
     counters = []
     for edge in edges:
@@ -410,7 +481,8 @@ def map_popularity_by_rating(players, edges):
         start = edge - 50
     return counters
 
-def map_popularity(data_set_type, viz_rating_keys=None):
+def all_civs_map_x_rating_heatmap_table(data_set_type, viz_rating_keys=None):
+    """ Returns a single heatmap html table of maps x ratings """
     maps = {}
     for k in MAPS:
         maps[k] = Map(k)
@@ -425,7 +497,7 @@ def map_popularity(data_set_type, viz_rating_keys=None):
         viz_rating_keys = rating_keys
     edges.append(10000)
     players = CachedPlayer.rated_players(data_set_type)
-    for ctr_idx, ctr in enumerate(map_popularity_by_rating(players, edges)):
+    for ctr_idx, ctr in enumerate(map_popularity_counters_bucketed_by_rating(players, edges)):
         total = sum(ctr.values())
         for idx, map_name in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
             if not map_name in maps:
@@ -441,21 +513,33 @@ def map_popularity(data_set_type, viz_rating_keys=None):
         ylabels.append(map_name)
         map_data = maps[map_name]
         data.append([(map_data.popularity[rk]/modifier, map_data.rankings[rk],) for rk in viz_rating_keys])
-    html.append(to_table(data, xlabels, ylabels, 'Map Name'))
+    html.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', lambda x: x))
     return '\n'.join(html)
 
 def rebuild_cache():
+    """ For use after resampling data (elo.sample). """
     for data_set_type in ('test', 'model', 'verification',):
-        PlayerRating.ratings_for(data_set_type, update=True)
+        # PlayerRating.ratings_for(data_set_type, update=True)
         cache_results(data_set_type)
+
+def write_all():
+    """ Write out all the tables to all the files. """
+    data_set_type = 'model'
+    civs, maps_with_data, rating_keys = cached_results(data_set_type)
+    half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
+    mapping = popularity_cdf(civs.values())
+    write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, mapping, data_set_type)
+    write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, ['1-650', '1001-1100', '1651+',], mapping)
+    write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, mapping)
 
 def run():
     data_set_type = 'model'
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
     half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
     mapping = popularity_cdf(civs.values())
-    popularity_per_civ_to_html(civs, maps_with_data, half_keys, mapping, data_set_type)
-    popularity_per_rating_to_html(civs, maps_with_data, ['1-650', '1001-1100', '1651+',], mapping)
-
+    def normalized(x):
+        return mapping[round(x, 3)]
+    print(civs['Persians'].heatmap_rating_data('Steppe', half_keys))
+    write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
 if __name__ == '__main__':
     run()
