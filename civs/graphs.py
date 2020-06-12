@@ -15,7 +15,7 @@ ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
 CACHED_TEMPLATE = '{}/data/cached_civ_popularity_map_for_{{}}.pickle'.format(ROOT_DIR)
 
-from utils.models import MatchReport, CachedPlayer
+from utils.models import MatchReport, CachedPlayer, PlayerRating
 
 MAPS = [
     'Islands',
@@ -90,19 +90,23 @@ def to_table(data, xlabels, ylabels, row_label_header=''):
         html_rows.append(''.join(row_info))
     html_rows.append('</table>')
     return '\n'.join(html_rows)
-    
+
 class CachedCiv:
     def __init__(self, civ):
         self.name = civ.name
         self.rankings = civ.rankings
         self.popularity = civ.popularity
 
-class Civ:
+class Rankable:
     def __init__(self, name):
         self.name = name
         self.rankings = defaultdict(default_ranking)
         self.popularity = defaultdict(default_popularity)
 
+class Map(Rankable):
+    pass
+
+class Civ(Rankable):
     def from_cache(cached_civ):
         civ = Civ(cached_civ.name)
         civ.rankings = cached_civ.rankings
@@ -189,7 +193,7 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
                 civs[civ].popularity[map_name] = ctr[civ]/total
         if len(maps_with_data) > max_maps:
             break
-    # Calculate overall popularity by map by rating bucket        
+    # Calculate overall popularity by map by rating bucket
     for map_name in maps_with_data:
         for ctr_idx, ctr in enumerate(civ_popularity_by_rating(players, map_name, edges)):
             total = sum(ctr.values())
@@ -204,7 +208,6 @@ def overall_civ_popularity_to_html(civs, maps, mapping):
     civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
     map_dict = {}
     header_row = civ_names
-    all_row = ['All',]
     for map_name in maps:
         row = []
         map_dict[map_name] = row
@@ -272,7 +275,7 @@ def popularity_per_rating_to_html(civs, maps, rating_keys, mapping):
         f.write(overall_civ_popularity_to_html(civs, maps, mapping))
         f.write(civ_popularity_by_rating_to_html(civs, maps, rating_keys, mapping))
 
-def popularity_per_civ_to_html(civs, maps, rating_keys, mapping):
+def popularity_per_civ_to_html(civs, maps, rating_keys, mapping, data_set_type):
     """ Generates html representation of each civ's popularity by map and rating. """
     with open('{}/civs/civ_popularity_data.html'.format(ROOT_DIR), 'w') as f:
         f.write("""<!doctype html>
@@ -293,6 +296,7 @@ def popularity_per_civ_to_html(civs, maps, rating_keys, mapping):
 </head>
 <body>
 """)
+        f.write(map_popularity(data_set_type, rating_keys))
         f.write('<h2>Popularity of Each Civ Segemented by Map and Ranking</h2>')
         for civ_name in sorted(civs):
             f.write(civs[civ_name].civ_popularity_to_html(maps, rating_keys, mapping))
@@ -394,12 +398,63 @@ def popularity_table(mapping):
                 break
     return to_table(data, xlabels, ylabels, 'Popularity')
 
+def map_popularity_by_rating(players, edges):
+    start = 0
+    counters = []
+    for edge in edges:
+        map_ctr = Counter()
+        counters.append(map_ctr)
+        snapshot_players = [p for p in players if start < p.best_rating <= edge]
+        for player in snapshot_players:
+            player.add_map_percentages(map_ctr, start, edge)
+        start = edge - 50
+    return counters
+
+def map_popularity(data_set_type, viz_rating_keys=None):
+    maps = {}
+    for k in MAPS:
+        maps[k] = Map(k)
+    edges = [i for i in range(650, 1701, 50)]
+    start = 0
+    rating_keys = []
+    for edge in edges:
+        rating_keys.append('{}-{}'.format(start + 1, edge))
+        start = edge - 50
+    rating_keys.append('{}+'.format(edges[-1] - 49))
+    if not viz_rating_keys:
+        viz_rating_keys = rating_keys
+    edges.append(10000)
+    players = CachedPlayer.rated_players(data_set_type)
+    for ctr_idx, ctr in enumerate(map_popularity_by_rating(players, edges)):
+        total = sum(ctr.values())
+        for idx, map_name in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
+            if not map_name in maps:
+                continue
+            maps[map_name].rankings[rating_keys[ctr_idx]] = idx + 1
+            maps[map_name].popularity[rating_keys[ctr_idx]] = ctr[map_name]/total
+    modifier = max([v for m in maps.values() for v in m.popularity.values()])
+    html = ['<h3>Overall Popularity of Maps per Rating</h3>',]
+    xlabels = viz_rating_keys
+    ylabels = []
+    data = []
+    for map_name in sorted(maps, key=lambda x: MAP_ORDER.index(x)):
+        ylabels.append(map_name)
+        map_data = maps[map_name]
+        data.append([(map_data.popularity[rk]/modifier, map_data.rankings[rk],) for rk in viz_rating_keys])
+    html.append(to_table(data, xlabels, ylabels, 'Map Name'))
+    return '\n'.join(html)
+
+def rebuild_cache():
+    for data_set_type in ('test', 'model', 'verification',):
+        PlayerRating.ratings_for(data_set_type, update=True)
+        cache_results(data_set_type)
+
 def run():
     data_set_type = 'model'
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
     half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
     mapping = popularity_cdf(civs.values())
-    popularity_per_civ_to_html(civs, maps_with_data, half_keys, mapping)
+    popularity_per_civ_to_html(civs, maps_with_data, half_keys, mapping, data_set_type)
     popularity_per_rating_to_html(civs, maps_with_data, ['1-650', '1001-1100', '1651+',], mapping)
 
 if __name__ == '__main__':

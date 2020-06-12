@@ -560,5 +560,5 @@ class CachedPlayer(Player):
         return players
 
 if __name__ == '__main__':
-    for data_set_type in ('model', 'verification',):
+    for data_set_type in ('test', 'model', 'verification',):
         PlayerRating.ratings_for(data_set_type, update=True)

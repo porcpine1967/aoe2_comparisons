@@ -347,4 +347,4 @@ if __name__ == '__main__':
     data_set_type = 'model'
     map_popularity_by_number_of_matches(data_set_type)
     map_popularity_by_rating(data_set_type)
-    # civ_popularity_by_map(data_set_type)
+    civ_popularity_by_map(data_set_type)
