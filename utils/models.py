@@ -150,7 +150,7 @@ class MatchReport():
         team_ctr = Counter()
         for team in teams:
             team_ctr[team] += 1
-        self.match_type = 'v'.join([str(i) for i in team_ctr.values()])
+        self.match_type = 'v'.join([str(i) for i in sorted(team_ctr.values())])
         self.winner = int(row[6])
         self.version = row[7]
 

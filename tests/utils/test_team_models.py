@@ -140,6 +140,9 @@ def test_match_type():
     row = ['1582141235', '33', '16:13:20:18', '1563:1605:1609:1624', '1547211:216695:261325:261818', '1:1:2:2', '2', '']
     mr = utils.team_models.MatchReport(row)
     assert mr.match_type == '2v2'
+    row = ['1582141235', '33', '16:13:20', '1563:1605:1609', '1547211:216695:261325', '1:1:2', '2', '']
+    mr = utils.team_models.MatchReport(row)
+    assert mr.match_type == '1v2'
     row = ['1586874994', '72', '17:11:24:2:5:23', '1591:1500:1445:1487:1425:1648', '1540393:1684941:1691937:1720359:1954867:254209', '2:1:1:1:2:2', '2', '36202']
     mr = utils.team_models.MatchReport(row)
     assert mr.match_type == '3v3'
@@ -163,74 +166,74 @@ def test_info_for():
     assert rating == None
     assert won_state == None
 
-# # Player
-# def test_add_civ_percentages():
-#     player = utils.team_models.Player('foo')
-#     player.matches.append(utils.team_models.MatchReport(['11-16-9', '10', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-#     player.matches.append(utils.team_models.MatchReport(['12-17-9', '100', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-#     player.matches.append(utils.team_models.MatchReport(['13-16-22', '1000', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-#     # One civ
-#     ctr = Counter()
-#     has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 20)
-#     assert has_result
-#     assert len(ctr) == 1
-#     assert ctr['Goths'] == 1
-#     # Two civs
-#     ctr = Counter()
-#     has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 2000)
-#     assert has_result
-#     assert len(ctr) == 2
-#     assert ctr['Goths'] == .5
-#     assert ctr['Huns'] == .5
-#     # Different map
-#     ctr = Counter()
-#     has_result = player.add_civ_percentages(ctr, 'Rivers', 0, 2000)
-#     assert has_result
-#     assert len(ctr) == 1
-#     assert ctr['Incas'] == 1
-#     # All
-#     ctr = Counter()
-#     has_result = player.add_civ_percentages(ctr, 'all', 0, 2000)
-#     assert has_result
-#     assert len(ctr) == 3
-#     assert ctr['Goths'] == 1/3.0
-#     assert ctr['Huns'] == 1/3.0
-#     assert ctr['Incas'] == 1/3.0
-#     # No Result does not update
-#     has_result = player.add_civ_percentages(ctr, 'No such map', 0, 2000)
-#     assert not has_result
-#     assert len(ctr) == 3
-#     assert ctr['Goths'] == 1/3.0
-#     assert ctr['Huns'] == 1/3.0
-#     assert ctr['Incas'] == 1/3.0
+# Player
+def test_add_civ_percentages():
+    player = utils.team_models.Player('foo')
+    player.matches.append(utils.team_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:1979688', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:1979688', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:1979688', '1:2', '0', '0']))
+    # One civ
+    ctr = Counter()
+    has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 20)
+    assert has_result
+    assert len(ctr) == 1
+    assert ctr['Goths'] == 1
+    # Two civs
+    ctr = Counter()
+    has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 2000)
+    assert has_result
+    assert len(ctr) == 2
+    assert ctr['Goths'] == .5
+    assert ctr['Huns'] == .5
+    # Different map
+    ctr = Counter()
+    has_result = player.add_civ_percentages(ctr, 'Rivers', 0, 2000)
+    assert has_result
+    assert len(ctr) == 1
+    assert ctr['Incas'] == 1
+    # All
+    ctr = Counter()
+    has_result = player.add_civ_percentages(ctr, 'all', 0, 2000)
+    assert has_result
+    assert len(ctr) == 3
+    assert ctr['Goths'] == 1/3.0
+    assert ctr['Huns'] == 1/3.0
+    assert ctr['Incas'] == 1/3.0
+    # No Result does not update
+    has_result = player.add_civ_percentages(ctr, 'No such map', 0, 2000)
+    assert not has_result
+    assert len(ctr) == 3
+    assert ctr['Goths'] == 1/3.0
+    assert ctr['Huns'] == 1/3.0
+    assert ctr['Incas'] == 1/3.0
 
-# def test_add_map_percentages():
-#     player = utils.team_models.Player('foo')
-#     player.matches.append(utils.team_models.MatchReport(['11-16-9', '10', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-#     player.matches.append(utils.team_models.MatchReport(['12-17-9', '100', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-#     player.matches.append(utils.team_models.MatchReport(['13-16-22', '1000', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-#     # One map one play
-#     ctr = Counter()
-#     has_result = player.add_map_percentages(ctr, 0, 20)
-#     assert has_result
-#     assert len(ctr) == 1
-#     assert ctr['Arabia'] == 1
-#     # One map two plays
-#     ctr = Counter()
-#     has_result = player.add_map_percentages(ctr, 0, 200)
-#     assert has_result
-#     assert len(ctr) == 1
-#     assert ctr['Arabia'] == 1
-#     # Two maps
-#     ctr = Counter()
-#     has_result = player.add_map_percentages(ctr, 0, 2000)
-#     assert has_result
-#     assert len(ctr) == 2
-#     assert ctr['Arabia'] == 2/3.0
-#     assert ctr['Rivers'] == 1/3.0
-#     # No Result does not update
-#     has_result = player.add_map_percentages(ctr, 0, 1)
-#     assert not has_result
-#     assert len(ctr) == 2
-#     assert ctr['Arabia'] == 2/3.0
-#     assert ctr['Rivers'] == 1/3.0
+def test_add_map_percentages():
+    player = utils.team_models.Player('foo')
+    player.matches.append(utils.team_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:1979688', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:1979688', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:1979688', '1:2', '0', '0']))
+    # One map one play
+    ctr = Counter()
+    has_result = player.add_map_percentages(ctr, 0, 20)
+    assert has_result
+    assert len(ctr) == 1
+    assert ctr['Arabia'] == 1
+    # One map two plays
+    ctr = Counter()
+    has_result = player.add_map_percentages(ctr, 0, 200)
+    assert has_result
+    assert len(ctr) == 1
+    assert ctr['Arabia'] == 1
+    # Two maps
+    ctr = Counter()
+    has_result = player.add_map_percentages(ctr, 0, 2000)
+    assert has_result
+    assert len(ctr) == 2
+    assert ctr['Arabia'] == 2/3.0
+    assert ctr['Rivers'] == 1/3.0
+    # No Result does not update
+    has_result = player.add_map_percentages(ctr, 0, 1)
+    assert not has_result
+    assert len(ctr) == 2
+    assert ctr['Arabia'] == 2/3.0
+    assert ctr['Rivers'] == 1/3.0
