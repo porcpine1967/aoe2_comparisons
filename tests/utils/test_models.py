@@ -131,7 +131,18 @@ def test_match_report_to_from_csv():
 
 def test_all():
     print(utils.models.MatchReport.data_file_template.format('test'))
-    assert 1 == len(utils.models.MatchReport.all('test'))
+    assert 11 == len(utils.models.MatchReport.all('test'))
+
+def test_match_type():
+    row = ['1582654374', '33', '5:30', '1258:1100', '1301032:242765', '2:1', '2', '0', ]
+    mr = utils.models.MatchReport(row)
+    assert mr.match_type == '1v1'
+    row = ['1582141235', '33', '16:13:20:18', '1563:1605:1609:1624', '1547211:216695:261325:261818', '1:1:2:2', '2', '']
+    mr = utils.models.MatchReport(row)
+    assert mr.match_type == '2v2'
+    row = ['1586874994', '72', '17:11:24:2:5:23', '1591:1500:1445:1487:1425:1648', '1540393:1684941:1691937:1720359:1954867:254209', '2:1:1:1:2:2', '2', '36202']
+    mr = utils.models.MatchReport(row)
+    assert mr.match_type == '3v3'
 
 def test_info_for():
     row = ['1582654374', '33', '5:30', '1258:1100', '1301032:242765', '2:1', '2', '0', ]

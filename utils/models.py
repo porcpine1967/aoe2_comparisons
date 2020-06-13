@@ -147,6 +147,10 @@ class MatchReport():
         teams = row[5].split(':')
         for i in range(len(civs)):
             self.players[ids[i]] = { 'civ': LOOKUP.civ_name(civs[i]), 'rating': int(ratings[i]), 'team': int(teams[i]) }
+        team_ctr = Counter()
+        for team in teams:
+            team_ctr[team] += 1
+        self.match_type = 'v'.join([str(i) for i in team_ctr.values()])
         self.winner = int(row[6])
         self.version = row[7]
 

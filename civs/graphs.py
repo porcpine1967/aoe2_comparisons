@@ -172,7 +172,7 @@ def civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges)
         start = edge - 50
     return counters
 
-def loaded_civs(data_set_type, max_maps=len(MAPS)):
+def loaded_civs(data_set_type, players=None):
     """ Calculates civ popularities overall, by map, by rating bucket, and by map-rating combination.
     returns civs, the maps that have data, and the rating keys available in the civs."""
     # Setup
@@ -187,7 +187,8 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
         start = edge - 50
     rating_keys.append('{}+'.format(edges[-1] - 49))
     edges.append(10000)
-    players = CachedPlayer.rated_players(data_set_type)
+    if not players:
+        players = CachedPlayer.rated_players(data_set_type)
 
     # Calculate overall popularity
     for ctr in civ_popularity_counters_for_map_bucketed_by_rating(players, 'all', [10000]):
@@ -216,8 +217,6 @@ def loaded_civs(data_set_type, max_maps=len(MAPS)):
                 civs[civ].popularity[map_name] = ctr[civ]/total
                 civs[civ].totals[map_name] = total
 
-        if len(maps_with_data) > max_maps:
-            break
     # Calculate overall popularity by map by rating bucket
     for map_name in maps_with_data:
         for ctr_idx, ctr in enumerate(civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges)):
@@ -274,7 +273,7 @@ def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normal
                 civ = civs[civ_name]
                 row.append((civ.popularity['{}-{}'.format(map_name, rk)], civ.rankings['{}-{}'.format(map_name, rk)],))
                 civ_popularities.append(civ.popularity['{}-{}'.format(map_name, rk)])
-        max_value = sorted(civ_popularities, reverse=True)[len(maps)-1]
+        max_value = sorted(civ_popularities, reverse=True)[0]
         def new_normalize(x):
             if x == 0: return x
             if x > max_value:
@@ -555,4 +554,4 @@ def run():
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
     map_similarity(civs, maps_with_data, rating_keys)
 if __name__ == '__main__':
-    write_all()
+    run()
