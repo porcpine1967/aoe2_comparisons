@@ -199,24 +199,41 @@ class MatchReport():
 
 class Match():
     """Holds match data from one player's perspective (loaded from api) """
-    data_file_template = '{}/data/matches_for_{{}}.csv'.format(ROOT_DIR)
     header = ['Match Id', 'Started', 'Map', 'Civ 1', 'RATING 1', 'Player 1', 'Civ 2', 'RATING 2', 'Player 2', 'Winner',]
-    def __init__(self, data):
-        try:
-            self.match_id = str(data['match_id'])
-            self.started = data['started']
-            self.map_type = data['map_type']
-            self.player_id_1 = str(data['players'][0]['profile_id'])
-            self.civ_1 = data['players'][0]['civ']
-            self.rating_1 = data['players'][0]['rating']
-            self.player_id_2 = str(data['players'][1]['profile_id'])
-            self.civ_2 = data['players'][1]['civ']
-            self.rating_2 = data['players'][1]['rating']
-            self.version = data['version']
-            self.winner = 0
-        except IndexError:
-            print(json.dumps(data))
-            raise
+
+    def all_for(klass, profile_id):
+        """ Returns all matches for a profile """
+        data_file = klass.data_file_template.format(profile_id)
+        if not os.path.exists(data_file):
+            raise RuntimeError('No match data available for {}'.format(profile_id))
+        matches = []
+        with open(data_file) as f:
+            reader = csv.reader(f)
+            for row in reader:
+                try:
+                    matches.append(klass.from_csv(row))
+                except ValueError:
+                    pass
+        return matches
+
+    def all(klass, include_duplicates=False):
+        """ Returns all matches for all users, with duplicates removed """
+        data_file_pattern = re.compile(r'matches_for_[0-9]+\.csv$')
+        data_dir = pathlib.Path(klass.data_file_template.format('')).parent.absolute()
+        matches = []
+        match_ids = set()
+        for filename in os.listdir(data_dir):
+            if data_file_pattern.match(filename):
+                with open('{}/{}'.format(data_dir, filename)) as f:
+                    reader = csv.reader(f)
+                    for row in reader:
+                        if include_duplicates or row[0] not in match_ids:
+                            match_ids.add(row[0])
+                            try:
+                                matches.append(klass.from_csv(row))
+                            except ValueError:
+                                pass
+        return matches
 
     def player_won_state(rating_klass, profile_id, rating, started):
         """ Looks in the ratings file for ratings with the same rating and a timestamp less than an hour ahead
@@ -281,99 +298,7 @@ class Match():
         return [self.started, self.map_type, ':'.join(civs), ':'.join(ratings), ':'.join(ids), ':'.join(teams), winning_team, self.version]
 
     def rating_for(self, profile_id):
-        if str(profile_id) == self.player_id_1:
-            return self.rating_1
-        elif str(profile_id) == self.player_id_2:
-            return self.rating_2
-        else:
-            return None
-
-    def mark_lost(self, profile_id):
-        if profile_id == self.player_id_1:
-            self.winner = 2
-        elif profile_id == self.player_id_2:
-            self.winner = 1
-        else:
-            self.winner = 0
-
-    def mark_won(self, profile_id):
-        if str(profile_id) == self.player_id_1:
-            self.winner = 1
-        elif str(profile_id) == self.player_id_2:
-            self.winner = 2
-        else:
-            self.winner = 0
-
-    @property
-    def winner_id(self):
-        if self.winner == 1:
-            return self.player_id_1
-        elif self.winner == 2:
-            return self.player_id_2
-        else:
-            return None
-
-    @property
-    def to_csv(self):
-        return [ self.match_id, self.started, self.map_type, self.civ_1, self.rating_1, self.player_id_1,
-                 self.civ_2, self.rating_2, self.player_id_2, self.winner, self.version]
-
-    @property
-    def recordable(self):
-        return self.rating_1 and self.rating_2
-
-    def from_csv(klass, row):
-        if len(row) > 10:
-            version = row[10]
-        else:
-            version = None
-        match_data = {
-            'match_id': row[0],
-            'started': int(row[1]),
-            'map_type': int(row[2]),
-            'players': [
-                { 'civ': int(row[3]), 'rating': int(row[4]), 'profile_id': row[5], },
-                { 'civ': int(row[6]), 'rating': int(row[7]), 'profile_id': row[8], },
-                ],
-            'version': version,
-            }
-        match = klass(match_data)
-        match.winner = int(row[9])
-        return match
-
-    def all_for(klass, profile_id):
-        """ Returns all matches for a profile """
-        data_file = klass.data_file_template.format(profile_id)
-        if not os.path.exists(data_file):
-            raise RuntimeError('No match data available for {}'.format(profile_id))
-        matches = []
-        with open(data_file) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                try:
-                    matches.append(klass.from_csv(row))
-                except ValueError:
-                    pass
-        return matches
-
-    def all(klass, include_duplicates=False):
-        """ Returns all matches for all users, with duplicates removed """
-        data_file_pattern = re.compile(r'matches_for_[0-9]+\.csv$')
-        data_dir = pathlib.Path(klass.data_file_template.format('')).parent.absolute()
-        matches = []
-        match_ids = set()
-        for filename in os.listdir(data_dir):
-            if data_file_pattern.match(filename):
-                with open('{}/{}'.format(data_dir, filename)) as f:
-                    reader = csv.reader(f)
-                    for row in reader:
-                        if include_duplicates or row[0] not in match_ids:
-                            match_ids.add(row[0])
-                            try:
-                                matches.append(klass.from_csv(row))
-                            except ValueError:
-                                pass
-        return matches
+        return self.players[str(profile_id)]['rating']
 
 class Rating():
     """Holds each change of rating for a single player (loaded from api with old rating extrapolated)"""

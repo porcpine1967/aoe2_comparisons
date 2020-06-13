@@ -19,15 +19,22 @@ class MatchReport(utils.models.MatchReport):
 
 class Match(utils.models.Match):
     data_file_template = '{}/data/matches_for_{{}}.csv'.format(utils.models.ROOT_DIR)
-    def all_for(profile_id):
-        return utils.models.Match.all_for(Match, profile_id)
-    def all(include_duplicates=False):
-        return utils.models.Match.all(Match, include_duplicates)
-    def from_csv(row):
-        return utils.models.Match.from_csv(Match, row)
-
-    def to_record(self):
-        return super().to_record(Match, Rating)
+    def __init__(self, data):
+        try:
+            self.match_id = str(data['match_id'])
+            self.started = data['started']
+            self.map_type = data['map_type']
+            self.player_id_1 = str(data['players'][0]['profile_id'])
+            self.civ_1 = data['players'][0]['civ']
+            self.rating_1 = data['players'][0]['rating']
+            self.player_id_2 = str(data['players'][1]['profile_id'])
+            self.civ_2 = data['players'][1]['civ']
+            self.rating_2 = data['players'][1]['rating']
+            self.version = data['version']
+            self.winner = 0
+        except IndexError:
+            print(json.dumps(data))
+            raise
 
     @property
     def players(self):
@@ -38,6 +45,37 @@ class Match(utils.models.Match):
         return { self.player_id_1: { 'civ': self.civ_1, 'rating': self.rating_1, 'team': teams[0] },
                  self.player_id_2: { 'civ': self.civ_2, 'rating': self.rating_2, 'team': teams[1] } } 
 
+    @property
+    def to_csv(self):
+        return [ self.match_id, self.started, self.map_type, self.civ_1, self.rating_1, self.player_id_1,
+                 self.civ_2, self.rating_2, self.player_id_2, self.winner, self.version]
+
+    def from_csv(row):
+        if len(row) > 10:
+            version = row[10]
+        else:
+            version = None
+        match_data = {
+            'match_id': row[0],
+            'started': int(row[1]),
+            'map_type': int(row[2]),
+            'players': [
+                { 'civ': int(row[3]), 'rating': int(row[4]), 'profile_id': row[5], },
+                { 'civ': int(row[6]), 'rating': int(row[7]), 'profile_id': row[8], },
+                ],
+            'version': version,
+            }
+        match = Match(match_data)
+        match.winner = int(row[9])
+        return match
+
+    def to_record(self):
+        return super().to_record(Match, Rating)
+
+    def all_for(profile_id):
+        return utils.models.Match.all_for(Match, profile_id)
+    def all(include_duplicates=False):
+        return utils.models.Match.all(Match, include_duplicates)
 
 class Rating(utils.models.Rating):
     data_dir = '{}/data'.format(utils.models.ROOT_DIR)

@@ -48,7 +48,7 @@ def test_match_all():
 def test_determine_winner():
     match_row = [ '9409809','1582654374','33','30:5','1132:1158','242765:1301032', '1:2', '0', ]
     match = utils.team_models.Match.from_csv(match_row)
-    assert 2 == match.determine_winner()
+    assert 2 == match.determine_winner(utils.team_models.Match, utils.team_models.Rating)
 
 def test_to_record():
     expected = [1582654374, 33, '5:30', '1158:1132', '1301032:242765', '2:1', 2, '0', ]

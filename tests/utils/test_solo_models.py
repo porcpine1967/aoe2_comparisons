@@ -33,38 +33,6 @@ def test_rating_for():
     assert match.rating_1 == match.rating_for(match.player_id_1)
     assert match.rating_2 == match.rating_for(match.player_id_2)
 
-def test_mark_lost():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
-    match = utils.solo_models.Match.from_csv(match_row)
-    match.mark_lost(match.player_id_1)
-    assert match.winner == 2
-    match.mark_lost(match.player_id_2)
-    assert match.winner == 1
-    match.mark_lost('foo')
-    assert match.winner == 0
-
-def test_mark_won():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
-    match = utils.solo_models.Match.from_csv(match_row)
-    match.mark_won(match.player_id_1)
-    assert match.winner == 1
-    match.mark_won(match.player_id_2)
-    assert match.winner == 2
-    match.mark_won('foo')
-    assert match.winner == 0
-
-def test_winner_id():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
-    match = utils.solo_models.Match.from_csv(match_row)
-    assert match.winner_id == None
-    match.winner = 2
-    assert match.winner_id == match.player_id_2
-    match.winner = 1
-    assert match.winner_id == match.player_id_1
-
 def test_match_all_for():
     assert len(utils.solo_models.Match.all_for('1301032')) == 2
 
