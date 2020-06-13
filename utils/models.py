@@ -228,7 +228,7 @@ class Match():
         """ Determines which team won by assessing the combined information from all players.
         Ideal case is one team knows it won and the other knows it lost. Else it just goes
         with the one who knows. If neither knows or they disagree, it returns 0 meaning cannot determine. """
-        
+
         teams = defaultdict(lambda: None)
         for player_id, data in self.players.items():
             player_won_state = Match.player_won_state(player_id, data['rating'], self.started)
@@ -435,7 +435,7 @@ class User():
 
 class PlayerRating:
     """ Caches last calculated best rating for players. """
-    data_file_template = '{}/team-data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)    
+    data_file_template = '{}/team-data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)
     def ratings_for(data_set_type, mincount=5, update=False):
         data_file = PlayerRating.data_file_template.format(data_set_type, mincount)
         if update or not os.path.exists(data_file):

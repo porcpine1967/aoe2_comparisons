@@ -154,24 +154,21 @@ def profiles_from_files(file_prefix):
             profiles.append(m.group(1))
     return profiles
 
-def new_matches_and_ratings(downloaded, checked):
+def new_matches_and_ratings(to_check, checked):
     print('Calling All Matches and Ratings')
     print('Will skip {} profiles'.format(len(downloaded)))
     to_download = set()
-    for profile_id in downloaded - checked:
+    for profile_id in to_check:
         for match in Match.all_for(profile_id):
             for player_id in match.players:
-                if not player_id in downloaded:
+                if not player_id in checked:
                     to_download.add(player_id)
-        checked.add(profile_id)
 
     print('Downloading {} profiles'.format(len(to_download)))
     with Pool() as p:
         p.map(both, to_download)
-    for profile_id in to_download:
-        downloaded.add(profile_id)
     if to_download:
-        new_matches_and_ratings(downloaded, checked)
+        new_matches_and_ratings(to_download, checked + to_download)
 
 def both_force(profile_id):
     matches(profile_id, True)
@@ -209,4 +206,6 @@ def update():
     new_matches_and_ratings(downloaded, checked)
 
 if __name__ == '__main__':
-    update()
+    all_users = User.all()
+    downloaded = set([u.profile_id for u in all_users])
+    new_matches_and_ratings(downloaded, set(profiles_from_files('ratings')))
