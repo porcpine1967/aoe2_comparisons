@@ -8,7 +8,7 @@ import pathlib
 import re
 import time
 
-from utils.models import Rating
+from utils.team_models import Rating
 
 def monitor(args):
     profile_pattern = re.compile(r'matches_for_([0-9]+)\.csv$')

@@ -13,6 +13,7 @@ ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 import numpy as np
 from utils.lookup import Lookup
+import utils.models
 
 LOOKUP = Lookup()
 
@@ -131,100 +132,47 @@ class Player:
         for match in matches:
             for player_id in match.players:
                 if player_id not in player_dict: player_dict[player_id] = Player(player_id)
-            player_dict[match.player_1].matches.append(match)
-            player_dict[match.player_2].matches.append(match)
+                player_dict[player_id].matches.append(match)
         return player_dict.values()
 
-class MatchReport():
-    """ Holds match information from both players' perspective (loaded from Match records). """
-    def __init__(self, row):
-        self.timestamp = int(row[0])
-        self.map = LOOKUP.map_name(row[1])
-        self.players = {}
-        civs = row[2].split(':')
-        ratings = row[3].split(':')
-        ids = row[4].split(':')
-        teams = row[5].split(':')
-        for i in range(len(civs)):
-            self.players[ids[i]] = { 'civ': LOOKUP.civ_name(civs[i]), 'rating': int(ratings[i]), 'team': int(teams[i]) }
-        team_ctr = Counter()
-        for team in teams:
-            team_ctr[team] += 1
-        self.match_type = 'v'.join([str(i) for i in team_ctr.values()])
-        self.winner = int(row[6])
-        self.version = row[7]
-
-    def info_for(self, player_id):
-        player_id = str(player_id)
-        if not player_id in self.players:
-            return None, None, None
-        player = self.players[player_id]
-        if self.winner == 0:
-            winner = 'na'
-        elif self.winner == player['team']:
-            winner = 'won'
-        else:
-            winner = 'lost'
-        return player['civ'], player['rating'], winner
-
-    def all(klass, data_set_type):
-        reports = []
-        with open(klass.data_file_template.format(data_set_type)) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                reports.append(MatchReport(row))
-        return reports
-
+class MatchReport(utils.models.MatchReport):
+    data_file_template = '{}/team-data/match_{{}}_data.csv'.format(utils.models.ROOT_DIR)
+    def all(data_set_type):
+        return utils.models.MatchReport.all(MatchReport, data_set_type)
+    def by_rating(data_set_type, lower, upper):
+        return utils.models.MatchReport.by_rating(MatchReport, data_set_type, lower, upper)
     def by_map(data_set_type, map_type):
-        reports = []
-        with open(MatchReport.data_file_template.format(data_set_type)) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if row[1] == str(map_type):
-                    reports.append(MatchReport(row))
-        return reports
-
+        return utils.models.MatchReport.by_map(MatchReport, data_set_type, map_type)
     def by_map_and_rating(data_set_type, map_type, lower, upper):
-        reports = []
-        with open(MatchReport.data_file_template.format(data_set_type)) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if row[1] == str(map_type):
-                    report = MatchReport(row)
-                    for rating in [p['rating'] for p in self.players.values()]:
-                        if lower <= rating < upper:
-                            reports.append(report)
-                            break
-        return reports
+        return utils.models.MatchReport.by_map_and_rating(MatchReport, data_set_type, map_type, lower, upper)
 
 class Match():
     """Holds match data from one player's perspective (loaded from api) """
-    data_file_template = '{}/data/matches_for_{{}}.csv'.format(ROOT_DIR)
-    header = ['Match Id', 'Started', 'Map', 'Civ 1', 'RATING 1', 'Player 1', 'Civ 2', 'RATING 2', 'Player 2', 'Winner',]
+    data_file_template = '{}/team-data/matches_for_{{}}.csv'.format(ROOT_DIR)
+    header = ['Match Id', 'Started', 'Map', 'Civs', 'Ratings', 'Player Ids', 'Teams', 'Version',]
     def __init__(self, data):
         try:
             self.match_id = str(data['match_id'])
             self.started = data['started']
             self.map_type = data['map_type']
-            self.player_id_1 = str(data['players'][0]['profile_id'])
-            self.civ_1 = data['players'][0]['civ']
-            self.rating_1 = data['players'][0]['rating']
-            self.player_id_2 = str(data['players'][1]['profile_id'])
-            self.civ_2 = data['players'][1]['civ']
-            self.rating_2 = data['players'][1]['rating']
+            self.players = {}
+            for player in data['players']:
+                self.players[str(player['profile_id'])] = {'civ': player['civ'], 'rating': player['rating'], 'team': player['team']}
             self.version = data['version']
-            self.winner = 0
         except IndexError:
             print(json.dumps(data))
             raise
 
-    def player_won_state(rating_klass, profile_id, rating, started):
+    def file_for(profile_id):
+        return Match.data_file_template.format(profile_id)
+
+    def player_won_state(profile_id, rating, started):
         """ Looks in the ratings file for ratings with the same rating and a timestamp less than an hour ahead
         and and determines whether the player won or lost. If both or neither potential outcomes are
         available, it returns a "don't know" response (None). """
         possibles = set()
         try:
-            for possible_rating in rating_klass.lookup_for(profile_id)[rating]:
+            for possible_rating in Rating.lookup_for(profile_id)[rating]:
                 if 0 < possible_rating.timestamp - started < 3600:
                     possibles.add(possible_rating.won_state)
         except (KeyError, RuntimeError):
@@ -234,14 +182,14 @@ class Match():
             return None
         return possibles.pop()
 
-    def determine_winner(self, klass, rating_klass):
+    def determine_winner(self):
         """ Determines which team won by assessing the combined information from all players.
         Ideal case is one team knows it won and the other knows it lost. Else it just goes
         with the one who knows. If neither knows or they disagree, it returns 0 meaning cannot determine. """
 
         teams = defaultdict(lambda: None)
         for player_id, data in self.players.items():
-            player_won_state = klass.player_won_state(rating_klass, player_id, data['rating'], self.started)
+            player_won_state = Match.player_won_state(player_id, data['rating'], self.started)
             if player_won_state:
                 if not teams[data['team']]:
                     teams[data['team']] = player_won_state
@@ -255,7 +203,7 @@ class Match():
             return winners[0]
         return 0
 
-    def to_record(self, klass, rating_klass):
+    def to_record(self):
         """ Outputs self as record for analysis.
         timestamp
         map code
@@ -266,8 +214,15 @@ class Match():
         winning team
         version
         """
-        winning_team = self.determine_winner(klass, rating_klass)
+        _, timestamp, map_code, civs, ratings, ids, teams, version = self.to_csv
+        winning_team = self.determine_winner()
+        return [timestamp, map_code, civs, ratings, ids, teams, winning_team, version]
 
+    def rating_for(self, profile_id):
+        return self.players[str(profile_id)]['rating']
+
+    @property
+    def to_csv(self):
         ids = []
         civs = []
         ratings = []
@@ -278,72 +233,33 @@ class Match():
             civs.append(str(data['civ']))
             ratings.append(str(data['rating']))
             teams.append(str(data['team']))
-        return [self.started, self.map_type, ':'.join(civs), ':'.join(ratings), ':'.join(ids), ':'.join(teams), winning_team, self.version]
-
-    def rating_for(self, profile_id):
-        if str(profile_id) == self.player_id_1:
-            return self.rating_1
-        elif str(profile_id) == self.player_id_2:
-            return self.rating_2
-        else:
-            return None
-
-    def mark_lost(self, profile_id):
-        if profile_id == self.player_id_1:
-            self.winner = 2
-        elif profile_id == self.player_id_2:
-            self.winner = 1
-        else:
-            self.winner = 0
-
-    def mark_won(self, profile_id):
-        if str(profile_id) == self.player_id_1:
-            self.winner = 1
-        elif str(profile_id) == self.player_id_2:
-            self.winner = 2
-        else:
-            self.winner = 0
-
-    @property
-    def winner_id(self):
-        if self.winner == 1:
-            return self.player_id_1
-        elif self.winner == 2:
-            return self.player_id_2
-        else:
-            return None
-
-    @property
-    def to_csv(self):
-        return [ self.match_id, self.started, self.map_type, self.civ_1, self.rating_1, self.player_id_1,
-                 self.civ_2, self.rating_2, self.player_id_2, self.winner, self.version]
+        return [ self.match_id, self.started, self.map_type, ':'.join(civs), ':'.join(ratings), ':'.join(ids), ':'.join(teams), self.version]
 
     @property
     def recordable(self):
         return self.rating_1 and self.rating_2
 
-    def from_csv(klass, row):
-        if len(row) > 10:
-            version = row[10]
-        else:
-            version = None
+    def from_csv(row):
+        civs = row[3].split(':')
+        ratings = row[4].split(':')
+        ids = row[5].split(':')
+        teams = row[6].split(':')
+        players = []
+        for i in range(len(civs)):
+            players.append({ 'civ': int(civs[i]), 'profile_id': ids[i], 'rating': int(ratings[i]), 'team': int(teams[i]) })
         match_data = {
             'match_id': row[0],
             'started': int(row[1]),
             'map_type': int(row[2]),
-            'players': [
-                { 'civ': int(row[3]), 'rating': int(row[4]), 'profile_id': row[5], },
-                { 'civ': int(row[6]), 'rating': int(row[7]), 'profile_id': row[8], },
-                ],
-            'version': version,
+            'players': players,
+            'version': row[7],
             }
-        match = klass(match_data)
-        match.winner = int(row[9])
+        match = Match(match_data)
         return match
 
-    def all_for(klass, profile_id):
+    def all_for(profile_id):
         """ Returns all matches for a profile """
-        data_file = klass.data_file_template.format(profile_id)
+        data_file = Match.data_file_template.format(profile_id)
         if not os.path.exists(data_file):
             raise RuntimeError('No match data available for {}'.format(profile_id))
         matches = []
@@ -351,15 +267,15 @@ class Match():
             reader = csv.reader(f)
             for row in reader:
                 try:
-                    matches.append(klass.from_csv(row))
+                    matches.append(Match.from_csv(row))
                 except ValueError:
                     pass
         return matches
 
-    def all(klass, include_duplicates=False):
+    def all(include_duplicates=False):
         """ Returns all matches for all users, with duplicates removed """
         data_file_pattern = re.compile(r'matches_for_[0-9]+\.csv$')
-        data_dir = pathlib.Path(klass.data_file_template.format('')).parent.absolute()
+        data_dir = pathlib.Path(Match.data_file_template.format('')).parent.absolute()
         matches = []
         match_ids = set()
         for filename in os.listdir(data_dir):
@@ -370,7 +286,7 @@ class Match():
                         if include_duplicates or row[0] not in match_ids:
                             match_ids.add(row[0])
                             try:
-                                matches.append(klass.from_csv(row))
+                                matches.append(Match.from_csv(row))
                             except ValueError:
                                 pass
         return matches
@@ -378,6 +294,8 @@ class Match():
 class Rating():
     """Holds each change of rating for a single player (loaded from api with old rating extrapolated)"""
     header = ['Profile Id', 'Rating', 'Old Rating', 'Wins', 'Losses', 'Drops', 'Timestamp', 'Won State']
+    data_dir = '{}/team-data'.format(ROOT_DIR)
+    data_file_template = '{}/team-data/ratings_for_{{}}.csv'.format(ROOT_DIR)
     def __init__(self, profile_id, data):
         self.profile_id = profile_id
         self.rating = data['rating']
@@ -402,9 +320,9 @@ class Rating():
         rating.old_rating = int(row[2])
         return rating
 
-    def all_for(klass, profile_id):
+    def all_for(profile_id):
         """ Returns all ratings for a profile """
-        data_file = klass.data_file_template.format(profile_id)
+        data_file = Rating.data_file_template.format(profile_id)
         if not os.path.exists(data_file):
             raise RuntimeError('No rating data available for', profile_id)
         ratings = []
@@ -412,21 +330,21 @@ class Rating():
             reader = csv.reader(f)
             for row in reader:
                 try:
-                    ratings.append(klass.from_csv(row))
+                    ratings.append(Rating.from_csv(row))
                 except ValueError:
                     pass
         return ratings
 
-    def lookup_for(klass, profile_id):
+    def lookup_for(profile_id):
         lookup = defaultdict(lambda:[])
-        for rating in klass.all_for(profile_id):
+        for rating in Rating.all_for(profile_id):
             lookup[rating.old_rating].append(rating)
         return lookup
 
 class User():
     """Holds player data (loaded from api)"""
     header = ['Profile Id', 'Name', 'Rating', 'Number Games Played',]
-    data_file = '{}/data/users.csv'.format(ROOT_DIR)
+    data_file = '{}/team-data/users.csv'.format(ROOT_DIR)
     def __init__(self, data):
         self.profile_id = data['profile_id']
         self.name = data['name']
@@ -438,20 +356,26 @@ class User():
     def to_csv(self):
         return [self.profile_id, self.name, self.rating, self.game_count, self.should_update]
 
-    def update(self, klass, rating_klass, data):
+    def update(self, data):
         # If should have updated and ratings file not updated since last time users updated, don't change
-        rating_file = rating_klass.data_file_template.format(self.profile_id)
+        rating_file = Rating.data_file_template.format(self.profile_id)
         if not os.path.exists(rating_file):
             self.should_update = True
         else:
             should_update = self.game_count != data['games']
             if self.should_update and not should_update:
-                self.should_update = os.stat(klass.data_file).st_mtime > os.stat(rating_file).st_mtime
+                self.should_update = os.stat(User.data_file).st_mtime > os.stat(rating_file).st_mtime
             else:
                 self.should_update = should_update
         self.name = data['name']
         self.rating = data['rating']
         self.game_count = data['games']
+
+    def from_csv(row):
+        u = User({'profile_id': int(row[0]), 'name': row[1], 'rating': int(row[2]), 'games': int(row[3])})
+        if len(row) > 4:
+            u.should_update = row[4] == 'True'
+        return u
 
     def all():
         if not os.path.exists(User.data_file):
@@ -469,7 +393,7 @@ class User():
 
 class PlayerRating:
     """ Caches last calculated best rating for players. """
-    data_file_template = '{}/data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)    
+    data_file_template = '{}/team-data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)
     def ratings_for(data_set_type, mincount=5, update=False):
         data_file = PlayerRating.data_file_template.format(data_set_type, mincount)
         if update or not os.path.exists(data_file):

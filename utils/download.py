@@ -13,10 +13,7 @@ ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 import requests
 
-try:
-    from utils.models import Match, Rating, User
-except:
-    from models import Match, Rating, User
+from utils.team_models import Match, Rating, User
 
 MAX_DOWNLOAD = 10000
 
