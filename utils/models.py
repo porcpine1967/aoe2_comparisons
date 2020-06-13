@@ -131,70 +131,31 @@ class Player:
         for match in matches:
             for player_id in match.players:
                 if player_id not in player_dict: player_dict[player_id] = Player(player_id)
-            player_dict[match.player_1].matches.append(match)
-            player_dict[match.player_2].matches.append(match)
+                player_dict[player_id].matches.append(match)
         return player_dict.values()
 
 class MatchReport():
     """ Holds match information from both players' perspective (loaded from Match records). """
-    data_file_template = '{}/data/match_{{}}_data.csv'.format(ROOT_DIR)
+    data_file_template = '{}/team-data/match_{{}}_data.csv'.format(ROOT_DIR)
     def __init__(self, row):
-        self.code = row[0]
-        self.rating_1 = int(row[1])
-        self.rating_2 = int(row[2])
-        self.score = int(row[3])
-        self.winner = int(row[4])
-        self.player_1 = str(row[5])
-        self.player_2 = str(row[6])
-        self.timestamp = int(row[7])
-        c1, c2, m = self.code.split('-')
-        self.civ_1 = LOOKUP.civ_name(c1)
-        self.civ_2 = LOOKUP.civ_name(c2)
-        self.mirror = c1 == c2
-        self.map = LOOKUP.map_name(m)
-    @property
-    def players(self):
-        return (self.player_1, self.player_2,)
+        self.timestamp = int(row[0])
+        self.map = LOOKUP.map_name(row[1])
+        self.players = {}
+        civs = row[2].split(':')
+        ratings = row[3].split(':')
+        ids = row[4].split(':')
+        teams = row[5].split(':')
+        for i in range(len(civs)):
+            self.players[ids[i]] = { 'civ': LOOKUP.civ_name(civs[i]), 'rating': int(ratings[i]), 'team': int(teams[i]) }
+        self.winner = int(row[6])
+        self.version = row[7]
 
     def info_for(self, player_id):
-        won_state = 'na'
-        if player_id == self.player_1:
-            if self.winner == 1:
-                won_state = 'won'
-            elif self.winner == 2:
-                won_state = 'lost'
-            return self.civ_1, self.rating_1, won_state
-        if player_id == self.player_2:
-            if self.winner == 2:
-                won_state = 'won'
-            elif self.winner == 1:
-                won_state = 'lost'
-            return self.civ_2, self.rating_2, won_state
-        return None, None, None
-
-    def rating_edges(data_set_type, map_type, split, exclude_mirror=True):
-        ratings = []
-        for report in MatchReport.by_map(data_set_type, map_type):
-            if exclude_mirror and self.mirror:
-                continue
-            ratings.append(report.rating_1)
-            ratings.append(report.rating_2)
-        pct = 1.0/split
-        return [int(np.quantile(ratings, pct + pct*i)) for i in range(split - 1)]
-
-    def by_rating(data_set_type, lower, upper):
-        reports = []
-        used_keys = set()
-        with open(MatchReport.data_file_template.format(data_set_type)) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                report = MatchReport(row)
-                if report.competition_key in used_keys:
-                    continue
-                used_keys.add(report.competition_key)
-                if lower <= report.rating_1 < upper and lower <= report.rating_2 < upper:
-                    reports.append(report)
-        return reports
+        player_id = str(player_id)
+        if not player_id in self.players:
+            return None, None, None
+        player = self.players[player_id]
+        return player['civ'], player['rating'], player['team'] == self.winner and 'won' or 'lost'
 
     def all(data_set_type):
         reports = []
@@ -209,8 +170,7 @@ class MatchReport():
         with open(MatchReport.data_file_template.format(data_set_type)) as f:
             reader = csv.reader(f)
             for row in reader:
-                _, _, m = row[0].split('-')
-                if m == str(map_type):
+                if row[1] == str(map_type):
                     reports.append(MatchReport(row))
         return reports
 
@@ -219,48 +179,35 @@ class MatchReport():
         with open(MatchReport.data_file_template.format(data_set_type)) as f:
             reader = csv.reader(f)
             for row in reader:
-                _, _, m = row[0].split('-')
-                if m == str(map_type):
+                if row[1] == str(map_type):
                     report = MatchReport(row)
-                    if lower <= report.rating_1 < upper or lower <= report.rating_2 < upper:
-                        reports.append(report)
+                    for rating in [p['rating'] for p in self.players.values()]:
+                        if lower <= rating < upper:
+                            reports.append(report)
+                            break
         return reports
-
-    def other_player(self, player_id):
-        if player_id == self.player_1:
-            return self.player_2
-        return self.player_1
-
-    @property
-    def competition_key(self):
-        return '{}-{}'.format(*sorted(self.players))
 
 class Match():
     """Holds match data from one player's perspective (loaded from api) """
-    data_file_template = '{}/data/matches_for_{{}}.csv'.format(ROOT_DIR)
-    header = ['Match Id', 'Started', 'Map', 'Civ 1', 'RATING 1', 'Player 1', 'Civ 2', 'RATING 2', 'Player 2', 'Winner',]
+    data_file_template = '{}/team-data/matches_for_{{}}.csv'.format(ROOT_DIR)
+    header = ['Match Id', 'Started', 'Map', 'Civs', 'Ratings', 'Player Ids', 'Teams', 'Version',]
     def __init__(self, data):
         try:
             self.match_id = str(data['match_id'])
             self.started = data['started']
             self.map_type = data['map_type']
-            self.player_id_1 = str(data['players'][0]['profile_id'])
-            self.civ_1 = data['players'][0]['civ']
-            self.rating_1 = data['players'][0]['rating']
-            self.player_id_2 = str(data['players'][1]['profile_id'])
-            self.civ_2 = data['players'][1]['civ']
-            self.rating_2 = data['players'][1]['rating']
+            self.players = {}
+            for player in data['players']:
+                self.players[str(player['profile_id'])] = {'civ': player['civ'], 'rating': player['rating'], 'team': player['team']}
             self.version = data['version']
-            self.winner = 0
         except IndexError:
             print(json.dumps(data))
             raise
 
-    def player_won(profile_id, rating, started):
+    def player_won_state(profile_id, rating, started):
         """ Looks in the ratings file for ratings with the same rating and a timestamp less than an hour ahead
         and and determines whether the player won or lost. If both or neither potential outcomes are
         available, it returns a "don't know" response (None). """
-        won_state = set(('won',))
         possibles = set()
         try:
             for possible_rating in Rating.lookup_for(profile_id)[rating]:
@@ -271,126 +218,81 @@ class Match():
             pass
         if len(possibles) != 1: # we have a contradiction or no information
             return None
-        return possibles == won_state
+        return possibles.pop()
 
     def determine_winner(self):
-        """ Determines which player won be assessing the combined information from both players.
-        Ideal case is one player knows it won and the other knows it lost. Else it just goes
+        """ Determines which team won by assessing the combined information from all players.
+        Ideal case is one team knows it won and the other knows it lost. Else it just goes
         with the one who knows. If neither knows or they disagree, it returns 0 meaning cannot determine. """
-        player_1_won = Match.player_won(self.player_id_1, self.rating_1, self.started)
-        player_2_won = Match.player_won(self.player_id_2, self.rating_2, self.started)
-        # Player 1 and player 2 either both won or both lost or we don't know either
-        if player_1_won == player_2_won:
+        
+        teams = defaultdict(lambda: None)
+        for player_id, data in self.players.items():
+            player_won_state = Match.player_won_state(player_id, data['rating'], self.started)
+            if player_won_state:
+                if not teams[data['team']]:
+                    teams[data['team']] = player_won_state
+                elif teams[data['team']] != player_won_state:
+                    teams[data['team']] = 'na'
+        answers = list(teams.values())
+        if 'na' in answers:
             return 0
-        # Player 1 won and/or player 2 lost
-        if player_1_won or player_2_won == False:
-            return 1
-        # Player 2 won and/or player 1 lost
-        if player_2_won or player_1_won == False:
-            return 2
+        winners = [team for team, answer in teams.items() if answer == 'won']
+        if len(winners) == 1:
+            return winners[0]
+        return 0
 
     def to_record(self):
         """ Outputs self as record for analysis.
-        Note: "Player 1" and "Player 2" do not map to player_1 and player_2 in the match record. Unless it
-        is a mirror match. Instead, they indicate the player associated with the lowest and highest ordinal civ code.
-        Competition-code: {lowest ordinal civ code}-{highest ordinal civ code}-{map code}
-        Player 1 Rating: Rating of player with the lowest ordinal civ code
-        Player 2 Rating: Rating of player with the highest ordinal civ code
-        Rating difference: The difference between the rating of the winning player minus the rating of the
-                           losing player. It will be negative if a lower-rated player upsets a higher-rated player.
-        Winner: 1 or 2, depending on which player won
+        timestamp
+        map code
+        colon-delimited civilization codes
+        colon-delimited player ratings
+        colon-delimited player ids
+        colon-delimited teams
+        winning team
+        version
         """
-        determined_winner = self.determine_winner()
-        if self.civ_1 > self.civ_2:
-            code = '{}-{}-{}'.format(self.civ_2, self.civ_1, self.map_type)
-            player_1 = self.player_id_2
-            player_2 = self.player_id_1
-            rating_1 = self.rating_2
-            rating_2 = self.rating_1
-            winner = determined_winner == 1 and 2 or 1
-        else:
-            code = '{}-{}-{}'.format(self.civ_1, self.civ_2, self.map_type)
-            player_1 = self.player_id_1
-            player_2 = self.player_id_2
-            rating_1 = self.rating_1
-            rating_2 = self.rating_2
-            winner = determined_winner
-        if determined_winner == 0:
-            winner = 0
-            score = 0
-        elif determined_winner == 1:
-            score = self.rating_1 - self.rating_2
-        else:
-            score = self.rating_2 - self.rating_1
-        return [code, rating_1, rating_2, score, winner, player_1, player_2, self.started,]
+        _, timestamp, map_code, civs, ratings, ids, teams, version = self.to_csv
+        winning_team = self.determine_winner()
+        return [timestamp, map_code, civs, ratings, ids, teams, winning_team, version]
 
     def rating_for(self, profile_id):
-        if str(profile_id) == self.player_id_1:
-            return self.rating_1
-        elif str(profile_id) == self.player_id_2:
-            return self.rating_2
-        else:
-            return None
-
-    def mark_lost(self, profile_id):
-        if profile_id == self.player_id_1:
-            self.winner = 2
-        elif profile_id == self.player_id_2:
-            self.winner = 1
-        else:
-            self.winner = 0
-
-    def mark_won(self, profile_id):
-        if str(profile_id) == self.player_id_1:
-            self.winner = 1
-        elif str(profile_id) == self.player_id_2:
-            self.winner = 2
-        else:
-            self.winner = 0
-
-    @property
-    def winner_id(self):
-        if self.winner == 1:
-            return self.player_id_1
-        elif self.winner == 2:
-            return self.player_id_2
-        else:
-            return None
-
-    @property
-    def rating_diff(self):
-        """ Returns the winner's rating minus the looser's rating """
-        if self.winner == 1:
-            return self.rating_1 - self.rating_2
-        elif self.winner == 2:
-            return self.rating_2 - self.rating_1
+        return self.players[str(profile_id)]['rating']
 
     @property
     def to_csv(self):
-        return [ self.match_id, self.started, self.map_type, self.civ_1, self.rating_1, self.player_id_1,
-                 self.civ_2, self.rating_2, self.player_id_2, self.winner, self.version]
+        ids = []
+        civs = []
+        ratings = []
+        teams = []
+        for player_id in sorted(self.players):
+            data = self.players[player_id]
+            ids.append(player_id)
+            civs.append(str(data['civ']))
+            ratings.append(str(data['rating']))
+            teams.append(str(data['team']))
+        return [ self.match_id, self.started, self.map_type, ':'.join(civs), ':'.join(ratings), ':'.join(ids), ':'.join(teams), self.version]
 
     @property
     def recordable(self):
         return self.rating_1 and self.rating_2
 
     def from_csv(row):
-        if len(row) > 10:
-            version = row[10]
-        else:
-            version = None
+        civs = row[3].split(':')
+        ratings = row[4].split(':')
+        ids = row[5].split(':')
+        teams = row[6].split(':')
+        players = []
+        for i in range(len(civs)):
+            players.append({ 'civ': int(civs[i]), 'profile_id': ids[i], 'rating': int(ratings[i]), 'team': int(teams[i]) })
         match_data = {
             'match_id': row[0],
             'started': int(row[1]),
             'map_type': int(row[2]),
-            'players': [
-                { 'civ': int(row[3]), 'rating': int(row[4]), 'profile_id': row[5], },
-                { 'civ': int(row[6]), 'rating': int(row[7]), 'profile_id': row[8], },
-                ],
-            'version': version,
+            'players': players,
+            'version': row[7],
             }
         match = Match(match_data)
-        match.winner = int(row[9])
         return match
 
     def all_for(profile_id):
@@ -430,8 +332,8 @@ class Match():
 class Rating():
     """Holds each change of rating for a single player (loaded from api with old rating extrapolated)"""
     header = ['Profile Id', 'Rating', 'Old Rating', 'Wins', 'Losses', 'Drops', 'Timestamp', 'Won State']
-    data_dir = '{}/data'.format(ROOT_DIR)
-    data_file_template = '{}/data/ratings_for_{{}}.csv'.format(ROOT_DIR)
+    data_dir = '{}/team-data'.format(ROOT_DIR)
+    data_file_template = '{}/team-data/ratings_for_{{}}.csv'.format(ROOT_DIR)
     def __init__(self, profile_id, data):
         self.profile_id = profile_id
         self.rating = data['rating']
@@ -480,7 +382,7 @@ class Rating():
 class User():
     """Holds player data (loaded from api)"""
     header = ['Profile Id', 'Name', 'Rating', 'Number Games Played',]
-    data_file = '{}/data/users.csv'.format(ROOT_DIR)
+    data_file = '{}/team-data/users.csv'.format(ROOT_DIR)
     def __init__(self, data):
         self.profile_id = data['profile_id']
         self.name = data['name']
@@ -529,7 +431,7 @@ class User():
 
 class PlayerRating:
     """ Caches last calculated best rating for players. """
-    data_file_template = '{}/data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)    
+    data_file_template = '{}/team-data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)    
     def ratings_for(data_set_type, mincount=5, update=False):
         data_file = PlayerRating.data_file_template.format(data_set_type, mincount)
         if update or not os.path.exists(data_file):

@@ -53,7 +53,7 @@ def rating_from_csv(row):
 def get_users():
     """ Gets all users in users.csv """
     users = {}
-    with open('{}/data/users.csv'.format(ROOT_DIR)) as f:
+    with open('{}/team-data/users.csv'.format(ROOT_DIR)) as f:
         r = csv.reader(f)
         for row in r:
             try:
@@ -525,10 +525,10 @@ if __name__ == '__main__':
     profiles = set()
     inout = Counter()
     ten_hours_ago = time.time() - 60*60*10
-    for filename in os.listdir('{}/data'.format(ROOT_DIR)):
+    for filename in os.listdir('{}/team-data'.format(ROOT_DIR)):
         m = profile_pattern.match(filename)
         if m:
-            mtime = os.stat('{}/data/{}'.format(ROOT_DIR, filename)).st_mtime
+            mtime = os.stat('{}/team-data/{}'.format(ROOT_DIR, filename)).st_mtime
             if mtime - ten_hours_ago > 0:
                 inout['in'] += 1
             else:

@@ -13,37 +13,35 @@ import matplotlib.pyplot as plt
 from civs.flourish import CIVILIZATIONS
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
-CACHED_TEMPLATE = '{}/data/cached_civ_popularity_map_for_{{}}.pickle'.format(ROOT_DIR)
+CACHED_TEMPLATE = '{}/team-data/cached_civ_popularity_map_for_{{}}.pickle'.format(ROOT_DIR)
 
 from utils.models import MatchReport, CachedPlayer, PlayerRating
 
 MAPS = [
-    'Islands',
-    'Team Islands',
-    'Bog Islands',
-    'Continental',
-    'Gold Rush',
-    'Golden Pit',
-    'Golden Swamp',
-    'Mediterranean',
-    'Four Lakes',
-    'Alpine Lakes',
-    'MegaRandom',
-    'Nomad',
-    'Mountain Pass',
-    'Kilimanjaro',
-    'Serengeti',
-    'Steppe',
     'Arabia',
     'Arena',
+    'MegaRandom',
+    'Nomad',
     'Hideout',
-    'Hill Fort',
-    'Acropolis',
+    'Lombardia',
     'Black Forest',
+    'Scandinavia',
+    'Golden Swamp',
+    'Hill Fort',
+    'Oasis',
+    'Gold Rush',
+    'Steppe',
+    'Team Islands',
+    'Golden Pit',
+    'Mediterranean',
+    'Wolf Hill',
 ]
 MAP_ORDER = [
     'Steppe',
     'Mountain Pass',
+    'Scandinavia',
+    'Oasis',
+    'Wolf Hill',
     'Hill Fort',
     'Hideout',
     'Arena',
@@ -58,6 +56,7 @@ MAP_ORDER = [
     'MegaRandom',
     'Four Lakes',
     'Golden Swamp',
+    'Lombardia',
     'Alpine Lakes',
     'Nomad',
     'Bog Islands',
@@ -173,7 +172,7 @@ def civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges)
         start = edge - 50
     return counters
 
-def rloaded_civs(data_set_type, max_maps=len(MAPS)):
+def loaded_civs(data_set_type, max_maps=len(MAPS)):
     """ Calculates civ popularities overall, by map, by rating bucket, and by map-rating combination.
     returns civs, the maps that have data, and the rating keys available in the civs."""
     # Setup
@@ -245,8 +244,8 @@ def civs_x_maps_heatmap_table(civs, maps, normalize):
             civ_popularities.append(civ.popularity[map_name])
     max_value = sorted(civ_popularities, reverse=True)[len(maps)-1]
     def new_normalize(x):
-        if x > max_value:
-            return 1
+        if x == 0: return x
+        if x > max_value: return 1
         return x/max_value
 
     # Format data as rows of html in proper order
@@ -277,6 +276,7 @@ def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normal
                 civ_popularities.append(civ.popularity['{}-{}'.format(map_name, rk)])
         max_value = sorted(civ_popularities, reverse=True)[len(maps)-1]
         def new_normalize(x):
+            if x == 0: return x
             if x > max_value:
                 return 1
             return x/max_value
@@ -370,6 +370,8 @@ def write_civs_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize):
             civ_popularities = [civ.popularity['{}-{}'.format(map_name, rk)] for rk in rating_keys for civ in civs.values()]
             max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)-1]
             def new_normalize(x):
+                if max_value == 0:
+                    return 0
                 if x > max_value:
                     return 1
                 return x/max_value
@@ -533,7 +535,7 @@ def all_civs_map_x_rating_heatmap_table(data_set_type, viz_rating_keys=None):
 def rebuild_cache():
     """ For use after resampling data (elo.sample). """
     for data_set_type in ('test', 'model', 'verification',):
-        # PlayerRating.ratings_for(data_set_type, update=True)
+        PlayerRating.ratings_for(data_set_type, update=True)
         cache_results(data_set_type)
 
 def write_all():
@@ -545,17 +547,12 @@ def write_all():
     def normalized(x):
         return mapping[round(x, 3)]
     write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized, data_set_type)
-    write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, ['1-650', '1151-1250', '1651+',], normalized)
+    write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
     write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
 
 def run():
-    data_set_type = 'model'
+    data_set_type = 'test'
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
-    half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
-    mapping = popularity_cdf(civs.values())
-    def normalized(x):
-        return mapping[round(x, 3)]
-    print(civs['Persians'].heatmap_rating_data('Steppe', half_keys))
-    write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
+    map_similarity(civs, maps_with_data, rating_keys)
 if __name__ == '__main__':
     write_all()

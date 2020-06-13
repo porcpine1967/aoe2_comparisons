@@ -11,68 +11,32 @@ import utils.models
 @pytest.fixture(scope="session", autouse=True)
 def set_model_data_file_templates():
     if not '/tests' in utils.models.Match.data_file_template:
-        utils.models.Match.data_file_template = utils.models.Match.data_file_template.replace('/data', '/tests/data')
+        utils.models.Match.data_file_template = utils.models.Match.data_file_template.replace('/team-data', '/tests/team-data')
     if not '/tests' in utils.models.Rating.data_file_template:
-        utils.models.Rating.data_file_template = utils.models.Rating.data_file_template.replace('/data', '/tests/data')
+        utils.models.Rating.data_file_template = utils.models.Rating.data_file_template.replace('/team-data', '/tests/team-data')
     if not '/tests' in utils.models.MatchReport.data_file_template:
-        utils.models.MatchReport.data_file_template = utils.models.MatchReport.data_file_template.replace('/data', '/tests/data')
+        utils.models.MatchReport.data_file_template = utils.models.MatchReport.data_file_template.replace('/team-data', '/tests/team-data')
     if not '/tests' in utils.models.User.data_file:
-        utils.models.User.data_file = utils.models.User.data_file.replace('/data', '/tests/data')
+        utils.models.User.data_file = utils.models.User.data_file.replace('/team-data', '/tests/team-data')
 
 # Match
+def test_match_from_data():
+    data = { 'match_id': 1, 'started': 1591996736, 'map_type': 74, 'version': '37906',
+             'players': [ { 'civ': 17, 'profile_id': 1784541, 'rating': 2745, 'team': 1},
+                          { 'civ': 33, 'profile_id': 230432, 'rating': 2593, 'team': 2}, ] }
+    m = utils.models.Match(data)
+
 def test_match_to_from_csv():
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', '8276',]
+    # Match Id,Started,Map,Civs,Ratings,Player Ids,Teams,Version
+    match_row = [ '15483707', '1586536235', '20', '34:24', '659:818', '1310102:1406544', '1:2', '8276',]
     match = utils.models.Match.from_csv(match_row)
     assert match_row == [str(x) for x in match.to_csv]
 
 def test_rating_for():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
+    match_row = [ '15483707', '1586536235', '20', '34:24', '659:818', '1310102:1406544', '1:2', '8276',]
     match = utils.models.Match.from_csv(match_row)
-    assert match.rating_1 == match.rating_for(match.player_id_1)
-    assert match.rating_2 == match.rating_for(match.player_id_2)
-
-def test_mark_lost():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
-    match = utils.models.Match.from_csv(match_row)
-    match.mark_lost(match.player_id_1)
-    assert match.winner == 2
-    match.mark_lost(match.player_id_2)
-    assert match.winner == 1
-    match.mark_lost('foo')
-    assert match.winner == 0
-
-def test_mark_won():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
-    match = utils.models.Match.from_csv(match_row)
-    match.mark_won(match.player_id_1)
-    assert match.winner == 1
-    match.mark_won(match.player_id_2)
-    assert match.winner == 2
-    match.mark_won('foo')
-    assert match.winner == 0
-
-def test_winner_id():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
-    match = utils.models.Match.from_csv(match_row)
-    assert match.winner_id == None
-    match.winner = 2
-    assert match.winner_id == match.player_id_2
-    match.winner = 1
-    assert match.winner_id == match.player_id_1
-
-def test_rating_diff():
-    # Match Id,Started,Map,Civ 1,RATING 1,Player 1,Civ 2,RATING 2,Player 2,Winner
-    match_row = [ '15483707', '1586536235', '20', '34', '659', '1406544', '24', '818', '1310102', '0', ]
-    match = utils.models.Match.from_csv(match_row)
-    assert match.rating_diff == None
-    match.winner = 1
-    assert match.rating_diff == match.rating_1 - match.rating_2
-    match.winner = 2
-    assert match.rating_diff == match.rating_2 - match.rating_1
+    assert 659 == match.rating_for('1310102')
+    assert 818 == match.rating_for('1406544')
 
 def test_match_all_for():
     assert len(utils.models.Match.all_for('1301032')) == 2
@@ -82,23 +46,23 @@ def test_match_all():
     assert len(utils.models.Match.all(True)) == 4
 
 def test_determine_winner():
-    match_row = [ '9409809','1582654374','33','30','1132','242765','5','1158','1301032','0', ]
+    match_row = [ '9409809','1582654374','33','30:5','1132:1158','242765:1301032', '1:2', '0', ]
     match = utils.models.Match.from_csv(match_row)
     assert 2 == match.determine_winner()
 
 def test_to_record():
-    expected = ['5-30-33', 1158, 1132, 26, 1, '1301032', '242765', 1582654374]
+    expected = [1582654374, 33, '5:30', '1158:1132', '1301032:242765', '2:1', 2, '0', ]
     # Same as test determine winner
-    match_row = [ '9409809','1582654374','33','30','1132','242765','5','1158','1301032','0', ]
+    match_row = [ '9409809','1582654374','33','5:30','1158:1132','1301032:242765', '2:1', '0', ]
     match = utils.models.Match.from_csv(match_row)
     assert expected == match.to_record()
     # With players reversed
-    match_row = [ '9409809','1582654374','33','5','1158','1301032','30','1132','242765','0', ]
+    match_row = [ '9409809','1582654374','33','30:5','1132:1158','242765:1301032', '1:2', '0', ]
     match = utils.models.Match.from_csv(match_row)
     assert expected == match.to_record()
     # With no winner (ratings changed so winner can't be found)
-    expected = ['5-30-33', 115, 113, 0, 0, '1301032', '242765', 1582654374]
-    match_row = [ '9409809','1582654374','33','30','113','242765','5','115','1301032','0', ]
+    expected = [1582654374, 33, '5:30', '1258:1100', '1301032:242765', '2:1', 0, '0', ]
+    match_row = [ '9409809','1582654374','33','5:30','1258:1100','1301032:242765', '2:1', '0', ]
     match = utils.models.Match.from_csv(match_row)
     assert expected == match.to_record()
 
@@ -154,99 +118,108 @@ def test_user_should_update_no_file():
     assert user.should_update
 
 # MatchReport
+def test_match_report_to_from_csv():
+    # started, map_code, civs, ratings, player ids, teams, winner, version
+    row = ['1582654374', '33', '5:30', '1258:1100', '1301032:242765', '2:1', '2', '0', ]
+    match = utils.models.MatchReport(row)
+    assert match.timestamp == int(row[0])
+    assert match.map == 'Nomad'
+    assert match.winner == 2
+    assert match.version == '0'
+    assert match.players['1301032'] == { 'civ': 'Byzantines', 'rating': 1258, 'team': 2 }
+    assert match.players['242765'] == { 'civ': 'Tatars', 'rating': 1100, 'team': 1 }
+
 def test_all():
-    assert 10 == len(utils.models.MatchReport.all('test'))
+    print(utils.models.MatchReport.data_file_template.format('test'))
+    assert 1 == len(utils.models.MatchReport.all('test'))
 
 def test_info_for():
-    mr = utils.models.MatchReport(['12-16-9', '1040', '1014', '26', '1', '994498', '1979688', '1588091226'])
-    civ, rating, won_state = mr.info_for('994498')
+    row = ['1582654374', '33', '5:30', '1258:1100', '1301032:242765', '2:1', '2', '0', ]
+    mr = utils.models.MatchReport(row)
+    civ, rating, won_state = mr.info_for('1301032')
     # player 1
-    assert civ == 'Huns'
-    assert rating == 1040
+    assert civ == 'Byzantines'
+    assert rating == 1258
     assert won_state == 'won'
     # player 2
-    civ, rating, won_state = mr.info_for('1979688')
-    assert civ == 'Japanese'
-    assert rating == 1014
+    civ, rating, won_state = mr.info_for('242765')
+    assert civ == 'Tatars'
+    assert rating == 1100
     assert won_state == 'lost'
     # invalid player
     civ, rating, won_state = mr.info_for('invalid id')
     assert civ == None
     assert rating == None
     assert won_state == None
-    mr = utils.models.MatchReport(['12-16-9', '1040', '1014', '26', '0', '994498', '1979688', '1588091226'])
-    # test no clear winner
-    civ, rating, won_state = mr.info_for('994498')
-    assert won_state == 'na'
 
-# Player
-def test_add_civ_percentages():
-    player = utils.models.Player('foo')
-    player.matches.append(utils.models.MatchReport(['11-16-9', '10', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-    player.matches.append(utils.models.MatchReport(['12-17-9', '100', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-    player.matches.append(utils.models.MatchReport(['13-16-22', '1000', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-    # One civ
-    ctr = Counter()
-    has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 20)
-    assert has_result
-    assert len(ctr) == 1
-    assert ctr['Goths'] == 1
-    # Two civs
-    ctr = Counter()
-    has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 2000)
-    assert has_result
-    assert len(ctr) == 2
-    assert ctr['Goths'] == .5
-    assert ctr['Huns'] == .5
-    # Different map
-    ctr = Counter()
-    has_result = player.add_civ_percentages(ctr, 'Rivers', 0, 2000)
-    assert has_result
-    assert len(ctr) == 1
-    assert ctr['Incas'] == 1
-    # All
-    ctr = Counter()
-    has_result = player.add_civ_percentages(ctr, 'all', 0, 2000)
-    assert has_result
-    assert len(ctr) == 3
-    assert ctr['Goths'] == 1/3.0
-    assert ctr['Huns'] == 1/3.0
-    assert ctr['Incas'] == 1/3.0
-    # No Result does not update
-    has_result = player.add_civ_percentages(ctr, 'No such map', 0, 2000)
-    assert not has_result
-    assert len(ctr) == 3
-    assert ctr['Goths'] == 1/3.0
-    assert ctr['Huns'] == 1/3.0
-    assert ctr['Incas'] == 1/3.0
+# # Player
+# def test_add_civ_percentages():
+#     player = utils.models.Player('foo')
+#     player.matches.append(utils.models.MatchReport(['11-16-9', '10', '1014', '26', '0', 'foo', '1979688', '1588091226']))
+#     player.matches.append(utils.models.MatchReport(['12-17-9', '100', '1014', '26', '0', 'foo', '1979688', '1588091226']))
+#     player.matches.append(utils.models.MatchReport(['13-16-22', '1000', '1014', '26', '0', 'foo', '1979688', '1588091226']))
+#     # One civ
+#     ctr = Counter()
+#     has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 20)
+#     assert has_result
+#     assert len(ctr) == 1
+#     assert ctr['Goths'] == 1
+#     # Two civs
+#     ctr = Counter()
+#     has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 2000)
+#     assert has_result
+#     assert len(ctr) == 2
+#     assert ctr['Goths'] == .5
+#     assert ctr['Huns'] == .5
+#     # Different map
+#     ctr = Counter()
+#     has_result = player.add_civ_percentages(ctr, 'Rivers', 0, 2000)
+#     assert has_result
+#     assert len(ctr) == 1
+#     assert ctr['Incas'] == 1
+#     # All
+#     ctr = Counter()
+#     has_result = player.add_civ_percentages(ctr, 'all', 0, 2000)
+#     assert has_result
+#     assert len(ctr) == 3
+#     assert ctr['Goths'] == 1/3.0
+#     assert ctr['Huns'] == 1/3.0
+#     assert ctr['Incas'] == 1/3.0
+#     # No Result does not update
+#     has_result = player.add_civ_percentages(ctr, 'No such map', 0, 2000)
+#     assert not has_result
+#     assert len(ctr) == 3
+#     assert ctr['Goths'] == 1/3.0
+#     assert ctr['Huns'] == 1/3.0
+#     assert ctr['Incas'] == 1/3.0
 
-def test_add_map_percentages():
-    player = utils.models.Player('foo')
-    player.matches.append(utils.models.MatchReport(['11-16-9', '10', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-    player.matches.append(utils.models.MatchReport(['12-17-9', '100', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-    player.matches.append(utils.models.MatchReport(['13-16-22', '1000', '1014', '26', '0', 'foo', '1979688', '1588091226']))
-    # One map one play
-    ctr = Counter()
-    has_result = player.add_map_percentages(ctr, 0, 20)
-    assert has_result
-    assert len(ctr) == 1
-    assert ctr['Arabia'] == 1
-    # One map two plays
-    ctr = Counter()
-    has_result = player.add_map_percentages(ctr, 0, 200)
-    assert has_result
-    assert len(ctr) == 1
-    assert ctr['Arabia'] == 1
-    # Two maps
-    ctr = Counter()
-    has_result = player.add_map_percentages(ctr, 0, 2000)
-    assert has_result
-    assert len(ctr) == 2
-    assert ctr['Arabia'] == 2/3.0
-    assert ctr['Rivers'] == 1/3.0
-    # No Result does not update
-    has_result = player.add_map_percentages(ctr, 0, 1)
-    assert not has_result
-    assert len(ctr) == 2
-    assert ctr['Arabia'] == 2/3.0
-    assert ctr['Rivers'] == 1/3.0
+# def test_add_map_percentages():
+#     player = utils.models.Player('foo')
+#     player.matches.append(utils.models.MatchReport(['11-16-9', '10', '1014', '26', '0', 'foo', '1979688', '1588091226']))
+#     player.matches.append(utils.models.MatchReport(['12-17-9', '100', '1014', '26', '0', 'foo', '1979688', '1588091226']))
+#     player.matches.append(utils.models.MatchReport(['13-16-22', '1000', '1014', '26', '0', 'foo', '1979688', '1588091226']))
+#     # One map one play
+#     ctr = Counter()
+#     has_result = player.add_map_percentages(ctr, 0, 20)
+#     assert has_result
+#     assert len(ctr) == 1
+#     assert ctr['Arabia'] == 1
+#     # One map two plays
+#     ctr = Counter()
+#     has_result = player.add_map_percentages(ctr, 0, 200)
+#     assert has_result
+#     assert len(ctr) == 1
+#     assert ctr['Arabia'] == 1
+#     # Two maps
+#     ctr = Counter()
+#     has_result = player.add_map_percentages(ctr, 0, 2000)
+#     assert has_result
+#     assert len(ctr) == 2
+#     assert ctr['Arabia'] == 2/3.0
+#     assert ctr['Rivers'] == 1/3.0
+#     # No Result does not update
+#     has_result = player.add_map_percentages(ctr, 0, 1)
+#     assert not has_result
+#     assert len(ctr) == 2
+#     assert ctr['Arabia'] == 2/3.0
+#     assert ctr['Rivers'] == 1/3.0

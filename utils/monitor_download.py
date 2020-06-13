@@ -30,6 +30,7 @@ def monitor(args):
     template = '{:18}: {:>8}'
     print(template.format('Expected finish', expected_finish))
     print(template.format('Time left', str(time_left)))
+    print(template.format('Records done', count))
     print(template.format('Records left', args.total - count))
     template = '{:18}: {:>8.2f}'
     print(template.format('Users per second', count/time_expended))

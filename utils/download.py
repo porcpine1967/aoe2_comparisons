@@ -29,12 +29,12 @@ def users(force=False, write=True):
         else:
             print('users.csv already exists')
             return
-    url_template = 'https://aoe2.net/api/leaderboard?game=aoe2de&leaderboard_id=3&start={start}&count={count}'
+    url_template = 'https://aoe2.net/api/leaderboard?game=aoe2de&leaderboard_id=4&start={start}&count={count}'
     records = 0
     added = 0
     start = 1
     while True:
-        print("Downloading from {} to {}".format(start, start - 1 + MAX_DOWNLOAD))
+        print("Downloading users from {} to {}".format(start, start - 1 + MAX_DOWNLOAD))
         r = requests.get(url_template.format(start=start, count=MAX_DOWNLOAD))
         if r.status_code != 200:
             print(r.text)
@@ -82,7 +82,7 @@ def matches(profile_id, update=False):
 
         data = json.loads(r.text)
         for match_data in data:
-            if match_data['leaderboard_id'] == 3 and match_data['num_players'] == 2:
+            if match_data['leaderboard_id'] == 4 and match_data['num_players'] >= 2:
                 match = Match(match_data)
                 r1v1[match.started] = match
         if len(data) < MAX_DOWNLOAD:
@@ -112,7 +112,7 @@ def ratings(profile_id, update=False):
         else:
             print('  ratings for {} already exists'.format(profile_id))
             return
-    url_template = 'https://aoe2.net/api/player/ratinghistory?start={start}&count={count}&game=aoe2de&leaderboard_id=3&profile_id={profile_id}'
+    url_template = 'https://aoe2.net/api/player/ratinghistory?start={start}&count={count}&game=aoe2de&leaderboard_id=4&profile_id={profile_id}'
     start = 1
     total = 0
     while True:
@@ -160,10 +160,9 @@ def new_matches_and_ratings(downloaded, checked):
     to_download = set()
     for profile_id in downloaded - checked:
         for match in Match.all_for(profile_id):
-            if not match.player_id_1 in downloaded:
-                to_download.add(match.player_id_1)
-            if not match.player_id_2 in downloaded:
-                to_download.add(match.player_id_2)
+            for player_id in match.players:
+                if not player_id in downloaded:
+                    to_download.add(player_id)
         checked.add(profile_id)
 
     print('Downloading {} profiles'.format(len(to_download)))
