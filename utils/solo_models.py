@@ -85,6 +85,9 @@ class Rating(utils.models.Rating):
     def lookup_for(profile_id):
         return utils.models.Rating.lookup_for(Rating, profile_id)
 class User(utils.models.User):
+    data_file = '{}/data/users.csv'.format(utils.models.ROOT_DIR)
+    def all():
+        return utils.models.User.all(User)
     def update(self, data):
         return super().update(User, Rating, data)
     def from_csv(row):

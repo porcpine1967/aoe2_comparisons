@@ -7,17 +7,26 @@ import os
 import sys
 import pathlib
 import re
+import sys
 import time
 
 ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 import requests
 
-from utils.team_models import Match, Rating, User
+import utils.solo_models
+import utils.team_models
 
 MAX_DOWNLOAD = 10000
 
-def users(force=False, write=True):
+def users(leaderboard=3, force=False, write=True):
+    if leaderboard == 3:
+        User = utils.solo_models.User
+    elif leaderboard == 4:
+        User = utils.team_models.User
+    else:
+        print('No such leaderboard', leaderboard)
+        sys.exit(1)
     existing_users = {}
     if os.path.exists(User.data_file):
         if force:
@@ -26,13 +35,13 @@ def users(force=False, write=True):
         else:
             print('users.csv already exists')
             return
-    url_template = 'https://aoe2.net/api/leaderboard?game=aoe2de&leaderboard_id=4&start={start}&count={count}'
+    url_template = 'https://aoe2.net/api/leaderboard?game=aoe2de&leaderboard_id={lb}&start={start}&count={count}'
     records = 0
     added = 0
     start = 1
     while True:
         print("Downloading users from {} to {}".format(start, start - 1 + MAX_DOWNLOAD))
-        r = requests.get(url_template.format(start=start, count=MAX_DOWNLOAD))
+        r = requests.get(url_template.format(lb=leaderboard, start=start, count=MAX_DOWNLOAD))
         if r.status_code != 200:
             print(r.text)
             sys.exit(1)
@@ -140,7 +149,14 @@ def ratings(profile_id, update=False):
         writer.writerow(Rating.header)
         writer.writerows([m.to_csv for m in r1v1.values()])
 
-def profiles_from_files(file_prefix):
+def profiles_from_files(file_prefix, leaderboard=3):
+    if leaderboard == 3:
+        Rating = utils.solo_models.Rating
+    elif leaderboard == 4:
+        Rating = utils.team_models.Rating
+    else:
+        print('No such leaderboard', leaderboard)
+        sys.exit(1)
     profile_pattern = re.compile(r'{}_for_([0-9]+)\.csv$'.format(file_prefix))
     profiles = []
     ten_hours_ago = time.time() - 60*60*10

@@ -125,8 +125,7 @@ def test_match_report_to_from_csv():
     assert match.players['242765'] == { 'civ': 'Tatars', 'rating': 1100, 'team': 1 }
 
 def test_all():
-    print(utils.solo_models.MatchReport.data_file_template.format('test'))
-    assert 11 == len(utils.solo_models.MatchReport.all('test'))
+    assert 11 == len(utils.solo_models.MatchReport.all('for_test'))
 
 def test_info_for():
     mr = utils.solo_models.MatchReport(['1588091226', '9', '12:16', '1040:1014', '994498:1979688', '1:2', '1', '0'])

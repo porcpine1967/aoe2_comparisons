@@ -15,7 +15,7 @@ ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
 CACHED_TEMPLATE = '{}/team-data/cached_civ_popularity_map_for_{{}}.pickle'.format(ROOT_DIR)
 
-from utils.models import MatchReport, CachedPlayer, PlayerRating
+from utils.team_models import MatchReport, CachedPlayer, PlayerRating
 
 MAPS = [
     'Arabia',
@@ -539,7 +539,7 @@ def rebuild_cache():
 
 def write_all():
     """ Write out all the tables to all the files. """
-    data_set_type = 'model'
+    data_set_type = 'test'
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
     half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
     mapping = popularity_cdf(civs.values())
@@ -554,4 +554,4 @@ def run():
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
     map_similarity(civs, maps_with_data, rating_keys)
 if __name__ == '__main__':
-    run()
+    write_all()

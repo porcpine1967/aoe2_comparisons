@@ -1,0 +1,14 @@
+Unstaged changes after reset:
+M	civs/graphs.py
+M	tests/data/users.csv
+M	tests/team-data/match_for_test_data.csv
+D	tests/team-data/ratings_for_196240.csv
+M	tests/utils/test_download.py
+M	tests/utils/test_sample.py
+M	tests/utils/test_solo_models.py
+M	tests/utils/test_team_models.py
+M	utils/download.py
+M	utils/models.py
+M	utils/sample.py
+M	utils/solo_models.py
+M	utils/team_models.py

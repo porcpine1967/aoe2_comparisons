@@ -42,8 +42,8 @@ def test_match_all_for():
     assert len(utils.team_models.Match.all_for('1301032')) == 2
 
 def test_match_all():
-    assert len(utils.team_models.Match.all()) == 3
-    assert len(utils.team_models.Match.all(True)) == 4
+    assert len(utils.team_models.Match.all()) == 40
+    assert len(utils.team_models.Match.all(True)) == 41
 
 def test_determine_winner():
     match_row = [ '9409809','1582654374','33','30:5','1132:1158','242765:1301032', '1:2', '0', ]
@@ -130,8 +130,7 @@ def test_match_report_to_from_csv():
     assert match.players['242765'] == { 'civ': 'Tatars', 'rating': 1100, 'team': 1 }
 
 def test_all():
-    print(utils.team_models.MatchReport.data_file_template.format('test'))
-    assert 11 == len(utils.team_models.MatchReport.all('test'))
+    assert 10 == len(utils.team_models.MatchReport.all('for_test'))
 
 def test_match_type():
     row = ['1582654374', '33', '5:30', '1258:1100', '1301032:242765', '2:1', '2', '0', ]

@@ -131,8 +131,7 @@ class Player:
         for match in matches:
             for player_id in match.players:
                 if player_id not in player_dict: player_dict[player_id] = Player(player_id)
-            player_dict[match.player_1].matches.append(match)
-            player_dict[match.player_2].matches.append(match)
+                player_dict[player_id].matches.append(match)
         return player_dict.values()
 
 class MatchReport():
@@ -351,7 +350,6 @@ class Rating():
 class User():
     """Holds player data (loaded from api)"""
     header = ['Profile Id', 'Name', 'Rating', 'Number Games Played',]
-    data_file = '{}/data/users.csv'.format(ROOT_DIR)
     def __init__(self, data):
         self.profile_id = data['profile_id']
         self.name = data['name']
@@ -378,15 +376,15 @@ class User():
         self.rating = data['rating']
         self.game_count = data['games']
 
-    def all():
-        if not os.path.exists(User.data_file):
+    def all(klass):
+        if not os.path.exists(klass.data_file):
             raise RuntimeError('No user data file available')
         users = []
-        with open(User.data_file) as f:
+        with open(klass.data_file) as f:
             reader = csv.reader(f)
             for row in reader:
                 try:
-                    users.append(User.from_csv(row))
+                    users.append(klass.from_csv(row))
 
                 except ValueError:
                     pass

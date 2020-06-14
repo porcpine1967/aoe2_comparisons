@@ -1,22 +1,23 @@
 #!/usr/bin/env python
 """ Build sample data sets. """
 
+import argparse
 import concurrent.futures
 import csv
 import pathlib
 import random
 import time
-from utils.models import Match
+import utils.solo_models
+import utils.team_models
 
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
-
 
 def get_record(n):
     return n.to_record()
 
-def matches(chunksize):
+def matches(module, chunksize=200):
     """ Splits matches into model, verification, and test data sets and writes to separate files. """
-    matches = Match.all()
+    matches = module.Match.all()
     print('{} matches'.format(len(matches)))
     random.shuffle(matches)
 
@@ -32,7 +33,7 @@ def matches(chunksize):
         for match_record in executor.map(get_record, matches[verification_edge:], chunksize=chunksize):
             match_records.append(match_record)
     print('compiled {} match records for test'.format(len(match_records)))
-    with open('{}/team-data/match_test_data.csv'.format(ROOT_DIR), 'w') as f:
+    with open('{}/match_test_data.csv'.format(module.Rating.data_dir), 'w') as f:
         writer = csv.writer(f)
         for record in match_records:
             if record[6] > 0:
@@ -46,7 +47,7 @@ def matches(chunksize):
         for match_record in executor.map(get_record, matches[:model_edge], chunksize=chunksize):
             match_records.append(match_record)
     print('compiled {} match_records for model'.format(len(match_records)))
-    with open('{}/team-data/match_model_data.csv'.format(ROOT_DIR), 'w') as f:
+    with open('{}/match_model_data.csv'.format(module.Rating.data_dir), 'w') as f:
         writer = csv.writer(f)
         for record in match_records:
             if record[6] > 0:
@@ -60,11 +61,17 @@ def matches(chunksize):
         for match_record in executor.map(get_record, matches[model_edge:verification_edge], chunksize=chunksize):
             match_records.append(match_record)
     print('compiled {} match_records for verification'.format(len(match_records)))
-    with open('{}/team-data/match_verification_data.csv'.format(ROOT_DIR), 'w') as f:
+    with open('{}/match_verification_data.csv'.format(module.Rating.data_dir), 'w') as f:
         writer = csv.writer(f)
         for record in match_records:
             if record[6] > 0:
                 writer.writerow(record)
     print('Verification took {} seconds with chunksize {}'.format(int(time.time() - start), chunksize))
 if __name__ == '__main__':
-    matches(200)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('klass', choices=('team', 'solo',), help="team or solo")
+    args = parser.parse_args()
+    if args.klass == 'team':
+        matches(utils.team_models)
+    else:
+        matches(utils.solo_models)

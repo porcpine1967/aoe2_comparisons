@@ -5,16 +5,15 @@ import csv
 from datetime import datetime
 import json
 import os
-import pathlib
 import re
 from statistics import median, stdev
 
-ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 import numpy as np
 from utils.lookup import Lookup
 import utils.models
 
+ROOT_DIR = utils.models.ROOT_DIR
 LOOKUP = Lookup()
 
 class Player(utils.models.Player):
