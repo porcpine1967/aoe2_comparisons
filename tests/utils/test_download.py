@@ -12,18 +12,10 @@ import utils.team_models
 
 @pytest.fixture(scope="session", autouse=True)
 def set_model_data_file_templates():
-    if not '/tests' in utils.team_models.Rating.data_file_template:
-        utils.team_models.Rating.data_file_template = utils.team_models.Rating.data_file_template.replace('/team-data', '/tests/team-data')
-    if not '/tests' in utils.team_models.Rating.data_dir:
-        utils.team_models.Rating.data_dir = utils.team_models.Rating.data_dir.replace('/team-data', '/tests/team-data')
-    if not '/tests' in utils.team_models.User.data_file:
-        utils.team_models.User.data_file = utils.team_models.User.data_file.replace('/team-data', '/tests/team-data')
-    if not '/tests' in utils.solo_models.Rating.data_file_template:
-        utils.solo_models.Rating.data_file_template = utils.solo_models.Rating.data_file_template.replace('/data', '/tests/data')
-    if not '/tests' in utils.solo_models.Rating.data_dir:
-        utils.solo_models.Rating.data_dir = utils.solo_models.Rating.data_dir.replace('/data', '/tests/data')
-    if not '/tests' in utils.solo_models.User.data_file:
-        utils.solo_models.User.data_file = utils.solo_models.User.data_file.replace('/data', '/tests/data')
+    if not '/tests' in utils.solo_models.DATA_DIR:
+        utils.solo_models.DATA_DIR = utils.solo_models.DATA_DIR.replace('/data', '/tests/data')
+    if not '/tests' in utils.team_models.DATA_DIR:
+        utils.team_models.DATA_DIR = utils.team_models.DATA_DIR.replace('/team-data', '/tests/team-data')
 
 def test_fetch_solo_users(requests_mock):
     data = {"total":2,"leaderboard_id":3,"leaderboard":[{"profile_id":199324,"rating":2264,"name":"[aM] Hera","games":1207,},
@@ -36,9 +28,9 @@ def test_fetch_solo_users(requests_mock):
     users = utils.download.users(utils.solo_models, True, False)
 
     # Make sure ratings file touched since users file
-    user_change_time = os.stat(utils.solo_models.User.data_file).st_mtime
+    user_change_time = os.stat(utils.solo_models.User.data_file()).st_mtime
     time_change = (user_change_time + 1, user_change_time + 1,)
-    os.utime(utils.solo_models.Rating.data_file_template.format('199324'), time_change)
+    os.utime(utils.solo_models.Rating.data_file('199324'), time_change)
 
     assert len(users) == 4
     for user in users.values():
@@ -58,9 +50,9 @@ def test_fetch_team_users(requests_mock):
     users = utils.download.users(utils.team_models, True, False)
 
     # Make sure ratings file touched since users file
-    user_change_time = os.stat(utils.team_models.User.data_file).st_mtime
+    user_change_time = os.stat(utils.team_models.User.data_file()).st_mtime
     time_change = (user_change_time + 1, user_change_time + 1,)
-    os.utime(utils.team_models.Rating.data_file_template.format('199325'), time_change)
+    os.utime(utils.team_models.Rating.data_file('199325'), time_change)
 
     assert len(users) == 4
     for user in users.values():

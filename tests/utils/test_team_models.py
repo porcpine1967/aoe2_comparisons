@@ -10,14 +10,8 @@ import utils.team_models
 
 @pytest.fixture(scope="session", autouse=True)
 def set_model_data_file_templates():
-    if not '/tests' in utils.team_models.Match.data_file_template:
-        utils.team_models.Match.data_file_template = utils.team_models.Match.data_file_template.replace('/team-data', '/tests/team-data')
-    if not '/tests' in utils.team_models.Rating.data_file_template:
-        utils.team_models.Rating.data_file_template = utils.team_models.Rating.data_file_template.replace('/team-data', '/tests/team-data')
-    if not '/tests' in utils.team_models.MatchReport.data_file_template:
-        utils.team_models.MatchReport.data_file_template = utils.team_models.MatchReport.data_file_template.replace('/team-data', '/tests/team-data')
-    if not '/tests' in utils.team_models.User.data_file:
-        utils.team_models.User.data_file = utils.team_models.User.data_file.replace('/team-data', '/tests/team-data')
+    if not '/tests' in utils.team_models.DATA_DIR:
+        utils.team_models.DATA_DIR = utils.team_models.DATA_DIR.replace('/team-data', '/tests/team-data')
 
 # Match
 def test_match_from_data():
@@ -87,9 +81,9 @@ def test_user_to_from_csv():
 
 def test_user_should_update():
     profile_id = '196240'
-    user_change_time = os.stat(utils.team_models.User.data_file).st_mtime
+    user_change_time = os.stat(utils.team_models.User.data_file()).st_mtime
     time_change = (user_change_time + 1, user_change_time + 1,)
-    ratings_file = utils.team_models.Rating.data_file_template.format(profile_id)
+    ratings_file = utils.team_models.Rating.data_file(profile_id)
     # Make sure ratings file updated since users file
     os.utime(ratings_file, time_change)
     user_row = [ profile_id, 'TheViper', '2318', '399', ]

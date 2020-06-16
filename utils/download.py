@@ -24,7 +24,7 @@ MAX_DOWNLOAD = 10000
 def users(module, force=False, write=True):
     User = module.User
     existing_users = {}
-    if os.path.exists(User.data_file):
+    if os.path.exists(User.data_file()):
         if force:
             for u in User.all():
                 existing_users[u.profile_id] = u
@@ -55,7 +55,7 @@ def users(module, force=False, write=True):
             break
         start = MAX_DOWNLOAD + start
     if write:
-        with open(User.data_file, 'w') as f:
+        with open(User.data_file(), 'w') as f:
             csv.writer(f).writerows([User.header])
             csv.writer(f).writerows([u.to_csv for u in existing_users.values()])
     return existing_users
@@ -63,7 +63,7 @@ def users(module, force=False, write=True):
 def matches(profile_id, module, update=False):
     """ Downloads matches for a given profile"""
     Match = module.Match
-    data_file = Match.data_file_template.format(profile_id)
+    data_file = Match.data_file(profile_id)
     r1v1 = {}
     if os.path.exists(data_file):
         if update:
@@ -106,7 +106,7 @@ def matches(profile_id, module, update=False):
 def ratings(profile_id, module, update=False):
     """ Downloads ratings for a given profile """
     Rating = module.Rating
-    data_file = Rating.data_file_template.format(profile_id)
+    data_file = Rating.data_file(profile_id)
     r1v1 = {}
     if os.path.exists(data_file):
         if update:
@@ -152,7 +152,7 @@ def profiles_from_files(file_prefix, module):
     profiles = []
     ten_hours_ago = time.time() - 60*60*10
     # Get paths in order of modified time so oldest files first
-    for filename in sorted(pathlib.Path(module.Rating.data_dir).iterdir(), key=os.path.getmtime):
+    for filename in sorted(pathlib.Path(module.DATA_DIR).iterdir(), key=os.path.getmtime):
         m = profile_pattern.search(str(filename))
         if m:
             profiles.append(m.group(1))

@@ -14,6 +14,7 @@ from utils.lookup import Lookup
 import utils.models
 
 ROOT_DIR = utils.models.ROOT_DIR
+DATA_DIR = '{}/team-data'.format(utils.models.ROOT_DIR)
 LOOKUP = Lookup()
 leaderboard = 4
 
@@ -21,7 +22,8 @@ class Player(utils.models.Player):
     pass
 
 class MatchReport(utils.models.MatchReport):
-    data_file_template = '{}/team-data/match_{{}}_data.csv'.format(utils.models.ROOT_DIR)
+    def data_file(data_set_type):
+        return '{}/match_{}_data.csv'.format(DATA_DIR, data_set_type)
     def all(data_set_type):
         return utils.models.MatchReport.all(MatchReport, data_set_type)
     def by_rating(data_set_type, lower, upper):
@@ -33,7 +35,8 @@ class MatchReport(utils.models.MatchReport):
 
 class Match(utils.models.Match):
     """Holds match data from one player's perspective (loaded from api) """
-    data_file_template = '{}/team-data/matches_for_{{}}.csv'.format(ROOT_DIR)
+    def data_file(profile_id):
+        return '{}/matches_for_{}.csv'.format(DATA_DIR, profile_id)
     header = ['Match Id', 'Started', 'Map', 'Civs', 'Ratings', 'Player Ids', 'Teams', 'Version',]
     def __init__(self, data):
         try:
@@ -86,13 +89,13 @@ class Match(utils.models.Match):
     def all_for(profile_id):
         return utils.models.Match.all_for(Match, profile_id)
     def all(include_duplicates=False):
-        return utils.models.Match.all(Match, include_duplicates)
+        return utils.models.Match.all(utils.team_models, include_duplicates)
 
 class Rating():
     """Holds each change of rating for a single player (loaded from api with old rating extrapolated)"""
     header = ['Profile Id', 'Rating', 'Old Rating', 'Wins', 'Losses', 'Drops', 'Timestamp', 'Won State']
-    data_dir = '{}/team-data'.format(ROOT_DIR)
-    data_file_template = '{}/team-data/ratings_for_{{}}.csv'.format(ROOT_DIR)
+    def data_file(profile_id):
+        return '{}/ratings_for_{}.csv'.format(DATA_DIR, profile_id)
     def __init__(self, profile_id, data):
         self.profile_id = profile_id
         self.rating = data['rating']
@@ -118,79 +121,30 @@ class Rating():
         return rating
 
     def all_for(profile_id):
-        """ Returns all ratings for a profile """
-        data_file = Rating.data_file_template.format(profile_id)
-        if not os.path.exists(data_file):
-            raise RuntimeError('No rating data available for', profile_id)
-        ratings = []
-        with open(data_file) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                try:
-                    ratings.append(Rating.from_csv(row))
-                except ValueError:
-                    pass
-        return ratings
+        return utils.models.Rating.all_for(Rating, profile_id)
 
     def lookup_for(profile_id):
-        lookup = defaultdict(lambda:[])
-        for rating in Rating.all_for(profile_id):
-            lookup[rating.old_rating].append(rating)
-        return lookup
+        return utils.models.Rating.lookup_for(Rating, profile_id)
 
-class User():
+class User(utils.models.User):
     """Holds player data (loaded from api)"""
     header = ['Profile Id', 'Name', 'Rating', 'Number Games Played',]
-    data_file = '{}/team-data/users.csv'.format(ROOT_DIR)
-    def __init__(self, data):
-        self.profile_id = str(data['profile_id'])
-        self.name = data['name']
-        self.rating = data['rating']
-        self.game_count = data['games']
-        self.should_update = True
-
+    def data_file():
+        return '{}/users.csv'.format(DATA_DIR)
+    def all():
+        return utils.models.User.all(User)
+    def update(self, data):
+        return super().update(User, Rating, data)
+    def from_csv(row):
+        return utils.models.User.from_csv(User, row)
     @property
     def to_csv(self):
         return [self.profile_id, self.name, self.rating, self.game_count, self.should_update]
 
-    def update(self, data):
-        # If should have updated and ratings file not updated since last time users updated, don't change
-        rating_file = Rating.data_file_template.format(self.profile_id)
-        if not os.path.exists(rating_file):
-            self.should_update = True
-        else:
-            should_update = self.game_count != data['games']
-            if self.should_update and not should_update:
-                self.should_update = os.stat(User.data_file).st_mtime > os.stat(rating_file).st_mtime
-            else:
-                self.should_update = should_update
-        self.name = data['name']
-        self.rating = data['rating']
-        self.game_count = data['games']
-
-    def from_csv(row):
-        u = User({'profile_id': int(row[0]), 'name': row[1], 'rating': int(row[2]), 'games': int(row[3])})
-        if len(row) > 4:
-            u.should_update = row[4] == 'True'
-        return u
-
-    def all():
-        if not os.path.exists(User.data_file):
-            raise RuntimeError('No user data file available')
-        users = []
-        with open(User.data_file) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                try:
-                    users.append(User.from_csv(row))
-
-                except ValueError:
-                    pass
-        return users
-
 class PlayerRating:
     """ Caches last calculated best rating for players. """
-    data_file_template = '{}/team-data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)
+    def data_file(data_set_type, mincount=5):
+        return '{}/player_rating_{{}}_{{}}_data.csv'.format(DATA_DIR, data_set_type, mincount)
     def ratings_for(data_set_type, mincount=5, update=False):
         data_file = PlayerRating.data_file_template.format(data_set_type, mincount)
         if update or not os.path.exists(data_file):

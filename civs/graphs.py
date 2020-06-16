@@ -15,7 +15,7 @@ ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
 CACHED_TEMPLATE = '{}/team-data/cached_civ_popularity_map_for_{{}}.pickle'.format(ROOT_DIR)
 
-from utils.team_models import MatchReport, CachedPlayer, PlayerRating
+from utils.team_models import CachedPlayer, PlayerRating
 
 MAPS = [
     'Arabia',

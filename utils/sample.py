@@ -33,7 +33,7 @@ def matches(module, chunksize=200):
         for match_record in executor.map(get_record, matches[verification_edge:], chunksize=chunksize):
             match_records.append(match_record)
     print('compiled {} match records for test'.format(len(match_records)))
-    with open('{}/match_test_data.csv'.format(module.Rating.data_dir), 'w') as f:
+    with open('{}/match_test_data.csv'.format(module.DATA_DIR), 'w') as f:
         writer = csv.writer(f)
         for record in match_records:
             if record[6] > 0:
@@ -47,7 +47,7 @@ def matches(module, chunksize=200):
         for match_record in executor.map(get_record, matches[:model_edge], chunksize=chunksize):
             match_records.append(match_record)
     print('compiled {} match_records for model'.format(len(match_records)))
-    with open('{}/match_model_data.csv'.format(module.Rating.data_dir), 'w') as f:
+    with open('{}/match_model_data.csv'.format(module.DATA_DIR), 'w') as f:
         writer = csv.writer(f)
         for record in match_records:
             if record[6] > 0:
@@ -61,7 +61,7 @@ def matches(module, chunksize=200):
         for match_record in executor.map(get_record, matches[model_edge:verification_edge], chunksize=chunksize):
             match_records.append(match_record)
     print('compiled {} match_records for verification'.format(len(match_records)))
-    with open('{}/match_verification_data.csv'.format(module.Rating.data_dir), 'w') as f:
+    with open('{}/match_verification_data.csv'.format(module.DATA_DIR), 'w') as f:
         writer = csv.writer(f)
         for record in match_records:
             if record[6] > 0:

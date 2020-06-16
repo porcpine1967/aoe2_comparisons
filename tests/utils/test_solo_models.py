@@ -10,14 +10,8 @@ import utils.solo_models
 
 @pytest.fixture(scope="session", autouse=True)
 def set_model_data_file_templates():
-    if not '/tests' in utils.solo_models.Match.data_file_template:
-        utils.solo_models.Match.data_file_template = utils.solo_models.Match.data_file_template.replace('/data', '/tests/data')
-    if not '/tests' in utils.solo_models.Rating.data_file_template:
-        utils.solo_models.Rating.data_file_template = utils.solo_models.Rating.data_file_template.replace('/data', '/tests/data')
-    if not '/tests' in utils.solo_models.MatchReport.data_file_template:
-        utils.solo_models.MatchReport.data_file_template = utils.solo_models.MatchReport.data_file_template.replace('/data', '/tests/data')
-    if not '/tests' in utils.solo_models.User.data_file:
-        utils.solo_models.User.data_file = utils.solo_models.User.data_file.replace('/data', '/tests/data')
+    if not '/tests' in utils.solo_models.DATA_DIR:
+        utils.solo_models.DATA_DIR = utils.solo_models.DATA_DIR.replace('/data', '/tests/data')
 
 # Match
 def test_match_to_from_csv():
@@ -82,9 +76,9 @@ def test_user_to_from_csv():
 
 def test_user_should_update():
     profile_id = '196240'
-    user_change_time = os.stat(utils.solo_models.User.data_file).st_mtime
+    user_change_time = os.stat(utils.solo_models.User.data_file()).st_mtime
     time_change = (user_change_time + 1, user_change_time + 1,)
-    ratings_file = utils.solo_models.Rating.data_file_template.format(profile_id)
+    ratings_file = utils.solo_models.Rating.data_file(profile_id)
     # Make sure ratings file updated since users file
     os.utime(ratings_file, time_change)
     user_row = [ profile_id, 'TheViper', '2318', '399', ]

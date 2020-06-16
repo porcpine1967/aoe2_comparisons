@@ -168,28 +168,28 @@ class MatchReport():
 
     def all(klass, data_set_type):
         reports = []
-        with open(klass.data_file_template.format(data_set_type)) as f:
+        with open(klass.data_file(data_set_type)) as f:
             reader = csv.reader(f)
             for row in reader:
                 reports.append(MatchReport(row))
         return reports
 
-    def by_map(data_set_type, map_type):
+    def by_map(klass, data_set_type, map_type):
         reports = []
-        with open(MatchReport.data_file_template.format(data_set_type)) as f:
+        with open(klass.data_file(data_set_type)) as f:
             reader = csv.reader(f)
             for row in reader:
                 if row[1] == str(map_type):
                     reports.append(MatchReport(row))
         return reports
 
-    def by_map_and_rating(data_set_type, map_type, lower, upper):
+    def by_map_and_rating(klass, data_set_type, map_type, lower, upper):
         reports = []
-        with open(MatchReport.data_file_template.format(data_set_type)) as f:
+        with open(klass.data_file(data_set_type)) as f:
             reader = csv.reader(f)
             for row in reader:
                 if row[1] == str(map_type):
-                    report = MatchReport(row)
+                    report = klass(row)
                     for rating in [p['rating'] for p in self.players.values()]:
                         if lower <= rating < upper:
                             reports.append(report)
@@ -202,7 +202,7 @@ class Match():
 
     def all_for(klass, profile_id):
         """ Returns all matches for a profile """
-        data_file = klass.data_file_template.format(profile_id)
+        data_file = klass.data_file(profile_id)
         if not os.path.exists(data_file):
             raise RuntimeError('No match data available for {}'.format(profile_id))
         matches = []
@@ -215,10 +215,10 @@ class Match():
                     pass
         return matches
 
-    def all(klass, include_duplicates=False):
+    def all(module, include_duplicates=False):
         """ Returns all matches for all users, with duplicates removed """
         data_file_pattern = re.compile(r'matches_for_[0-9]+\.csv$')
-        data_dir = pathlib.Path(klass.data_file_template.format('')).parent.absolute()
+        data_dir = module.DATA_DIR
         matches = []
         match_ids = set()
         for filename in os.listdir(data_dir):
@@ -229,7 +229,7 @@ class Match():
                         if include_duplicates or row[0] not in match_ids:
                             match_ids.add(row[0])
                             try:
-                                matches.append(klass.from_csv(row))
+                                matches.append(module.Match.from_csv(row))
                             except ValueError:
                                 pass
         return matches
@@ -328,7 +328,7 @@ class Rating():
 
     def all_for(klass, profile_id):
         """ Returns all ratings for a profile """
-        data_file = klass.data_file_template.format(profile_id)
+        data_file = klass.data_file(profile_id)
         if not os.path.exists(data_file):
             raise RuntimeError('No rating data available for', profile_id)
         ratings = []
@@ -363,13 +363,13 @@ class User():
 
     def update(self, klass, rating_klass, data):
         # If should have updated and ratings file not updated since last time users updated, don't change
-        rating_file = rating_klass.data_file_template.format(self.profile_id)
+        rating_file = rating_klass.data_file(self.profile_id)
         if not os.path.exists(rating_file):
             self.should_update = True
         else:
             should_update = self.game_count != data['games']
             if self.should_update and not should_update:
-                self.should_update = os.stat(klass.data_file).st_mtime > os.stat(rating_file).st_mtime
+                self.should_update = os.stat(klass.data_file()).st_mtime > os.stat(rating_file).st_mtime
             else:
                 self.should_update = should_update
         self.name = data['name']
@@ -377,10 +377,10 @@ class User():
         self.game_count = data['games']
 
     def all(klass):
-        if not os.path.exists(klass.data_file):
+        if not os.path.exists(klass.data_file()):
             raise RuntimeError('No user data file available')
         users = []
-        with open(klass.data_file) as f:
+        with open(klass.data_file()) as f:
             reader = csv.reader(f)
             for row in reader:
                 try:
@@ -389,12 +389,17 @@ class User():
                 except ValueError:
                     pass
         return users
+    def from_csv(klass, row):
+        u = klass({'profile_id': int(row[0]), 'name': row[1], 'rating': int(row[2]), 'games': int(row[3])})
+        if len(row) > 4:
+            u.should_update = row[4] == 'True'
+        return u
+
 
 class PlayerRating:
     """ Caches last calculated best rating for players. """
-    data_file_template = '{}/data/player_rating_{{}}_{{}}_data.csv'.format(ROOT_DIR)    
     def ratings_for(data_set_type, mincount=5, update=False):
-        data_file = PlayerRating.data_file_template.format(data_set_type, mincount)
+        data_file = PlayerRating.data_file(data_set_type, mincount)
         if update or not os.path.exists(data_file):
             rows = []
             for player in Player.rated_players(MatchReport.all(data_set_type), mincount):
