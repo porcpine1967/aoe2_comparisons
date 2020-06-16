@@ -1,6 +1,7 @@
 #!/usr/bin/env
 
 """ Creates graphs of civ popularity. """
+import argparse
 from collections import defaultdict, Counter
 import csv
 from math import sqrt
@@ -13,7 +14,7 @@ import matplotlib.pyplot as plt
 from civs.flourish import CIVILIZATIONS
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
-CACHED_TEMPLATE = '{}/team-data/cached_civ_popularity_map_for_{{}}.pickle'.format(ROOT_DIR)
+CACHED_TEMPLATE = '{}/cached_civ_popularity_map_for_{}.pickle'
 
 import utils.solo_models
 
@@ -161,20 +162,22 @@ def civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges)
     map_name: which map to build the counters for. 'all' will ignore map as a filter
     edges: an array of edges in which to delineate ratings. First edge should be greater than zero, so first "bucket"
     will be from 1 to edges[0], second edge from edges[0] to edges[1], finishing at edges[-2] to edges[-1]."""
+    print('calculating civ_popularity_counters_for_map_bucketed_by_rating for map {} for {} edges'.format(map_name, len(edges)))
     start = 0
     counters = []
     for edge in edges:
         civ_ctr = Counter()
         counters.append(civ_ctr)
-        snapshot_players = [p for p in players if start < p.best_rating <= edge]
+        snapshot_players = [p for p in players if start < p.best_rating() <= edge]
         for player in snapshot_players:
             player.add_civ_percentages(civ_ctr, map_name, start, edge)
         start = edge - 50
     return counters
 
-def loaded_civs(data_set_type, players=None):
+def loaded_civs(data_set_type, module, players=None):
     """ Calculates civ popularities overall, by map, by rating bucket, and by map-rating combination.
     returns civs, the maps that have data, and the rating keys available in the civs."""
+    print('loading civs for', data_set_type)
     # Setup
     civs = {}
     for k in CIVILIZATIONS:
@@ -188,7 +191,8 @@ def loaded_civs(data_set_type, players=None):
     rating_keys.append('{}+'.format(edges[-1] - 49))
     edges.append(10000)
     if not players:
-        players = CachedPlayer.rated_players(data_set_type)
+        print('building players')
+        players = [p for p in module.Player.player_values(module.MatchReport.all(data_set_type), data_set_type) if p.best_rating()]
 
     # Calculate overall popularity
     for ctr in civ_popularity_counters_for_map_bucketed_by_rating(players, 'all', [10000]):
@@ -315,7 +319,7 @@ def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, normalize):
         f.write(civs_x_maps_heatmap_table(civs, maps, None))
         f.write(civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normalize))
 
-def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, data_set_type):
+def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, data_set_type, module):
     """ Generates html representation of each civ's popularity by map and rating. """
     with open('{}/civs/civ_popularity_data.html'.format(ROOT_DIR), 'w') as f:
         f.write("""<!doctype html>
@@ -336,7 +340,7 @@ def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, da
 </head>
 <body>
 """)
-        f.write(all_civs_map_x_rating_heatmap_table(data_set_type, rating_keys))
+        f.write(all_civs_map_x_rating_heatmap_table(module, data_set_type, rating_keys))
         f.write('<h2>Popularity of Each Civ Segmented by Map and Ranking</h2>')
         for civ_name in sorted(civs):
             f.write(civs[civ_name].map_x_rating_heatmap_table(maps, rating_keys, normalize))
@@ -427,20 +431,20 @@ def map_similarity(civs, maps_with_data, rating_keys):
         best_match[map_name] = similarity_ctr.most_common(2)
     print('{:15}  {:7} {:15}  {:7}  {}'.format('Best Match', 'Score', 'Next Best', 'Score', 'Map'))
     for map_name, match in best_match.items():
-        print('{1[0][0]:15} ({1[0][1]:5.2f})  {1[1][0]:15} ({1[1][1]:5.2f}) - {0:15}'.format(map_name, match))
+        print('{1[0][0]:15} ({1[0][1]:6.2f})  {1[1][0]:15} ({1[1][1]:5.2f}) - {0:15}'.format(map_name, match))
 
-def cache_results(data_set_type):
+def cache_results(data_set_type, module):
     """ Pickles results so can do analysis without rerunning everything."""
-    civs, maps_with_data, rating_keys = loaded_civs(data_set_type)
-    with open(CACHED_TEMPLATE.format(data_set_type), 'wb') as f:
+    civs, maps_with_data, rating_keys = loaded_civs(data_set_type, module)
+    with open(CACHED_TEMPLATE.format(module.DATA_DIR, data_set_type), 'wb') as f:
         pickle.dump([[CachedCiv(civ) for civ in civs.values()], maps_with_data, rating_keys], f)
 
-def cached_results(data_set_type):
+def cached_results(data_set_type, module):
     """ Returns pickled results. Will generate pickle if not present. """
-    cache_file = CACHED_TEMPLATE.format(data_set_type)
+    cache_file = CACHED_TEMPLATE.format(module.DATA_DIR, data_set_type)
     if not os.path.exists(cache_file):
-        cache_results(data_set_type)
-    with open(CACHED_TEMPLATE.format(data_set_type), 'rb') as f:
+        cache_results(data_set_type, module)
+    with open(cache_file, 'rb') as f:
         cached_civs, maps_with_data, rating_keys = pickle.load(f)
         civs = {}
         for cc in cached_civs:
@@ -490,13 +494,13 @@ def map_popularity_counters_bucketed_by_rating(players, edges):
     for edge in edges:
         map_ctr = Counter()
         counters.append(map_ctr)
-        snapshot_players = [p for p in players if start < p.best_rating <= edge]
+        snapshot_players = [p for p in players if start < p.best_rating() <= edge]
         for player in snapshot_players:
             player.add_map_percentages(map_ctr, start, edge)
         start = edge - 50
     return counters
 
-def all_civs_map_x_rating_heatmap_table(data_set_type, viz_rating_keys=None):
+def all_civs_map_x_rating_heatmap_table(module, data_set_type, viz_rating_keys=None):
     """ Returns a single heatmap html table of maps x ratings """
     maps = {}
     for k in MAPS:
@@ -511,7 +515,7 @@ def all_civs_map_x_rating_heatmap_table(data_set_type, viz_rating_keys=None):
     if not viz_rating_keys:
         viz_rating_keys = rating_keys
     edges.append(10000)
-    players = CachedPlayer.rated_players(data_set_type)
+    players = [p for p in module.Player.player_values(module.MatchReport.all(data_set_type), data_set_type) if p.best_rating()]
     for ctr_idx, ctr in enumerate(map_popularity_counters_bucketed_by_rating(players, edges)):
         total = sum(ctr.values())
         for idx, map_name in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
@@ -531,30 +535,35 @@ def all_civs_map_x_rating_heatmap_table(data_set_type, viz_rating_keys=None):
     html.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', lambda x: x))
     return '\n'.join(html)
 
-def rebuild_cache():
+def rebuild_cache(module):
     """ For use after resampling data (elo.sample). """
     for data_set_type in ('test', 'model', 'verification',):
-        PlayerRating.ratings_for(data_set_type, update=True)
-        cache_results(data_set_type)
+        print('making player rating cache for', data_set_type)
+        module.Player.cache_player_ratings(data_set_type)
+        cache_results(data_set_type, module)
 
 def write_all():
     """ Write out all the tables to all the files. """
-    data_set_type = 'test'
-    civs, maps_with_data, rating_keys = cached_results(data_set_type)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('klass', choices=('team', 'solo',), help="team or solo")
+    parser.add_argument('--source', default='model', choices=('test', 'model', 'verification',), help="which data set type to use (default model)")
+    args = parser.parse_args()
+    if args.klass == 'team':
+        module = utils.team_models
+    else:
+        module = utils.solo_models
+    data_set_type = args.source
+    civs, maps_with_data, rating_keys = cached_results(data_set_type, module )
     half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
     mapping = popularity_cdf(civs.values())
     def normalized(x):
         return mapping[round(x, 3)]
-    write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized, data_set_type)
+    write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized, data_set_type, module)
     write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
     write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
 
 def run():
-    data_set_type = 'test'
-    civs, maps_with_data, rating_keys = cached_results(data_set_type)
-    map_similarity(civs, maps_with_data, rating_keys)
+    write_all()
+
 if __name__ == '__main__':
-    data_set_type = 'model'
-    matches = utils.solo_models.MatchReport.all(data_set_type)
-    players = [p for p in utils.solo_models.Player.player_values(matches, data_set_type) if p.best_rating()]
-    print(len(players))
+    run()

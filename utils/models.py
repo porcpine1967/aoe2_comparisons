@@ -150,20 +150,22 @@ class Player:
                 player_dict[player_id].matches.append(match)
         if cached_ratings:
             for player_id, player in player_dict.items():
-                for k, lookup in cached_ratings.items():
-                    if player_id in lookup:
+                for k, rating_lookup in cached_ratings.items():
+                    if player_id in rating_lookup:
                         _, mincount = k
-                        player._best_ratings[mincount] = lookup[player_id]
+                        player._best_ratings[mincount] = rating_lookup[player_id]
         return player_dict.values()
 
-    def cache_player_ratings(module, data_set_type, mincount=5):
+    def cache_player_ratings(module, data_set_type, mincount):
         """ Calculate player ratings at mincount and write to cache.
         n.b. overwrites existing cache. """
         players = module.Player.player_values(module.MatchReport.all(data_set_type))
         data_file = module.Player.rating_cache_file(data_set_type, mincount)
         with open(data_file, 'w') as f:
             for player in players:
-                f.write('{},{}\n'.format(player.player_id, player.best_rating(mincount)))
+                best_rating = player.best_rating(mincount)
+                if best_rating:
+                    f.write('{},{}\n'.format(player.player_id, best_rating))
 
 class MatchReport():
     """ Holds match information from both players' perspective (loaded from Match records). """

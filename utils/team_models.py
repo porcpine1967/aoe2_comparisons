@@ -11,7 +11,7 @@ DATA_DIR = '{}/team-data'.format(utils.models.ROOT_DIR)
 class Player(utils.models.Player):
     def rating_cache_file(data_set_type, mincount):
         return '{}/player_rating_{}_{}_data.csv'.format(DATA_DIR, data_set_type, mincount)
-    def cache_player_ratings(data_set_type, mincount):
+    def cache_player_ratings(data_set_type, mincount=5):
         return utils.models.Player.cache_player_ratings(utils.team_models, data_set_type, mincount)
     def player_values(matches, include_ratings=()):
         return utils.models.Player.player_values(utils.team_models, matches, include_ratings)
