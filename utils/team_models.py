@@ -15,6 +15,7 @@ import utils.models
 
 ROOT_DIR = utils.models.ROOT_DIR
 LOOKUP = Lookup()
+leaderboard = 4
 
 class Player(utils.models.Player):
     pass
@@ -142,7 +143,7 @@ class User():
     header = ['Profile Id', 'Name', 'Rating', 'Number Games Played',]
     data_file = '{}/team-data/users.csv'.format(ROOT_DIR)
     def __init__(self, data):
-        self.profile_id = data['profile_id']
+        self.profile_id = str(data['profile_id'])
         self.name = data['name']
         self.rating = data['rating']
         self.game_count = data['games']

@@ -33,7 +33,7 @@ def test_fetch_solo_users(requests_mock):
 
     assert len(utils.solo_models.User.all()) == 3
 
-    users = utils.download.users(3, True, False)
+    users = utils.download.users(utils.solo_models, True, False)
 
     # Make sure ratings file touched since users file
     user_change_time = os.stat(utils.solo_models.User.data_file).st_mtime
@@ -55,7 +55,7 @@ def test_fetch_team_users(requests_mock):
 
     assert len(utils.team_models.User.all()) == 3
 
-    users = utils.download.users(4, True, False)
+    users = utils.download.users(utils.team_models, True, False)
 
     # Make sure ratings file touched since users file
     user_change_time = os.stat(utils.team_models.User.data_file).st_mtime
@@ -71,5 +71,5 @@ def test_fetch_team_users(requests_mock):
 
 def test_profiles_from_files():
     # solo
-    assert len(utils.download.profiles_from_files('ratings', 3)) == 6
-    assert len(utils.download.profiles_from_files('ratings', 4)) == 5
+    assert len(utils.download.profiles_from_files('ratings', utils.solo_models)) == 6
+    assert len(utils.download.profiles_from_files('ratings', utils.team_models)) == 5

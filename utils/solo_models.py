@@ -2,6 +2,7 @@ import pathlib
 
 import utils.models
 
+leaderboard = 3
 
 class Player(utils.models.Player):
     pass

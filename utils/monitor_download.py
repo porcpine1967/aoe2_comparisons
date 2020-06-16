@@ -8,19 +8,20 @@ import pathlib
 import re
 import time
 
-from utils.team_models import Rating
+import utils.solo_models
+import utils.team_models
 
-def monitor(args):
+def monitor(module, args):
     profile_pattern = re.compile(r'matches_for_([0-9]+)\.csv$')
     start = None
     count = 0
 
-    for filename in sorted(pathlib.Path(Rating.data_dir).iterdir(), key=os.path.getmtime):
+    for filename in sorted(pathlib.Path(module.Rating.data_dir).iterdir(), key=os.path.getmtime):
         m = profile_pattern.search(str(filename))
         if count > 0 and m:
             count += 1
         if m and m.group(1) == args.first_profile:
-            start = os.stat(Rating.data_file_template.format(m.group(1))).st_mtime
+            start = os.stat(module.Match.data_file_template.format(m.group(1))).st_mtime
             count = 1
     now = time.time()
     time_expended = now - start
@@ -37,7 +38,11 @@ def monitor(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('klass', choices=('team', 'solo',), help="team or solo")
     parser.add_argument('first_profile', help="id of first profile downloaded")
     parser.add_argument('total', type=int, help="number of records to process")
     args = parser.parse_args()
-    monitor(args)
+    if args.klass == 'team':
+        monitor(utils.team_models, args)
+    else:
+        monitor(utils.solo_models, args)
