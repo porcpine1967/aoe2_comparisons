@@ -1,6 +1,8 @@
-data/
-tmp/
-
+/data
+/team-data
+/tmp
+/tests/data/*_data.csv
+/tests/team-data/*_data.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
