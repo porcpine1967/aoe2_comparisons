@@ -15,7 +15,7 @@ ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
 CACHED_TEMPLATE = '{}/team-data/cached_civ_popularity_map_for_{{}}.pickle'.format(ROOT_DIR)
 
-from utils.team_models import CachedPlayer, PlayerRating
+import utils.solo_models
 
 MAPS = [
     'Arabia',
@@ -554,4 +554,7 @@ def run():
     civs, maps_with_data, rating_keys = cached_results(data_set_type)
     map_similarity(civs, maps_with_data, rating_keys)
 if __name__ == '__main__':
-    write_all()
+    data_set_type = 'model'
+    matches = utils.solo_models.MatchReport.all(data_set_type)
+    players = [p for p in utils.solo_models.Player.player_values(matches, data_set_type) if p.best_rating()]
+    print(len(players))

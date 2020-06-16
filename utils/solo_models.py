@@ -1,3 +1,5 @@
+""" Objects for analyzing data in 1v1 matches."""
+
 import pathlib
 
 import utils.models
@@ -7,7 +9,12 @@ leaderboard = 3
 DATA_DIR = '{}/data'.format(utils.models.ROOT_DIR)
 
 class Player(utils.models.Player):
-    pass
+    def rating_cache_file(data_set_type, mincount):
+        return '{}/player_rating_{}_{}_data.csv'.format(DATA_DIR, data_set_type, mincount)
+    def cache_player_ratings(data_set_type, mincount=5):
+        return utils.models.Player.cache_player_ratings(utils.solo_models, data_set_type, mincount)
+    def player_values(matches, include_ratings=()):
+        return utils.models.Player.player_values(utils.solo_models, matches, include_ratings)
 
 class MatchReport(utils.models.MatchReport):
     def data_file(data_set_type):
@@ -99,12 +106,6 @@ class User(utils.models.User):
     def from_csv(row):
         return utils.models.User.from_csv(User, row)
 
-class PlayerRating(utils.models.PlayerRating):
-    pass
-
-class CachedPlayer(utils.models.CachedPlayer):
-    pass
-
 if __name__ == '__main__':
     for data_set_type in ('test', 'model', 'verification',):
-        PlayerRating.ratings_for(data_set_type, update=True)
+        Player.cache_player_ratings(data_set_type)

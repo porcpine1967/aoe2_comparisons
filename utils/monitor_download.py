@@ -16,12 +16,12 @@ def monitor(module, args):
     start = None
     count = 0
 
-    for filename in sorted(pathlib.Path(module.Rating.data_dir).iterdir(), key=os.path.getmtime):
+    for filename in sorted(pathlib.Path(module.DATA_DIR).iterdir(), key=os.path.getmtime):
         m = profile_pattern.search(str(filename))
         if count > 0 and m:
             count += 1
         if m and m.group(1) == args.first_profile:
-            start = os.stat(module.Match.data_file_template.format(m.group(1))).st_mtime
+            start = os.stat(module.Match.data_file(m.group(1))).st_mtime
             count = 1
     now = time.time()
     time_expended = now - start

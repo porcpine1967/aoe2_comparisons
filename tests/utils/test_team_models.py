@@ -1,8 +1,7 @@
 from collections import Counter
+import csv
 import os
 import pathlib
-
-ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 import pytest
 
@@ -200,33 +199,57 @@ def test_add_civ_percentages():
     assert ctr['Huns'] == 1/3.0
     assert ctr['Incas'] == 1/3.0
 
-def test_add_map_percentages():
-    player = utils.team_models.Player('foo')
-    player.matches.append(utils.team_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:1979688', '1:2', '0', '0']))
-    player.matches.append(utils.team_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:1979688', '1:2', '0', '0']))
-    player.matches.append(utils.team_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:1979688', '1:2', '0', '0']))
-    # One map one play
-    ctr = Counter()
-    has_result = player.add_map_percentages(ctr, 0, 20)
-    assert has_result
-    assert len(ctr) == 1
-    assert ctr['Arabia'] == 1
-    # One map two plays
-    ctr = Counter()
-    has_result = player.add_map_percentages(ctr, 0, 200)
-    assert has_result
-    assert len(ctr) == 1
-    assert ctr['Arabia'] == 1
-    # Two maps
-    ctr = Counter()
-    has_result = player.add_map_percentages(ctr, 0, 2000)
-    assert has_result
-    assert len(ctr) == 2
-    assert ctr['Arabia'] == 2/3.0
-    assert ctr['Rivers'] == 1/3.0
-    # No Result does not update
-    has_result = player.add_map_percentages(ctr, 0, 1)
-    assert not has_result
-    assert len(ctr) == 2
-    assert ctr['Arabia'] == 2/3.0
-    assert ctr['Rivers'] == 1/3.0
+def test_best_rating():
+    player = utils.team_models.Player('bar')
+    # Started, map_code, civs, ratings, player ids, teams, winner, version
+    player.matches.append(utils.team_models.MatchReport(['1588091225', '9', '11:16', '10:103', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091226', '9', '11:16', '10:104', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091227', '9', '12:17', '100:105', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091228', '22', '13:16', '1000:1015', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091229', '22', '13:16', '1000:1016', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.team_models.MatchReport(['1588091230', '22', '13:16', '1000:1017', 'foo:bar', '1:2', '0', '0']))
+    # Do not calculate if number of matches less than 1.5 * minimum count
+    assert len(player.ratings) == 6
+    assert player.best_rating(5) == None
+    # Make sure if given the choice the highest choice is given
+    assert player.best_rating(3) == 1016
+    # Make sure result is cached
+    player.matches = []
+    assert player.best_rating(3) == 1016
+    assert player.best_rating(2) == None
+
+def test_cache_best_rating():
+    data_set_type = 'test_cache_best_rating'
+    mincount = 3
+    # remove cache file
+    if os.path.exists(utils.team_models.Player.rating_cache_file(data_set_type, mincount)):
+        os.remove(utils.team_models.Player.rating_cache_file(data_set_type, mincount))
+    # Set up match report data
+    match_reports = []
+    match_reports.append(['1588091225', '9', '11:16', '10:103', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091226', '9', '11:16', '10:104', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091227', '9', '12:17', '100:105', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091228', '22', '13:16', '1000:1015', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091229', '22', '13:16', '1000:1016', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091230', '22', '13:16', '1000:1017', 'foo:bar', '1:2', '0', '0'])
+    with open(utils.team_models.MatchReport.data_file(data_set_type), 'w') as f:
+        csv.writer(f).writerows(match_reports)
+
+    # Verify setup
+    matches = utils.team_models.MatchReport.all(data_set_type)
+    assert len(matches) == 6
+    players = utils.team_models.Player.player_values(matches, ((data_set_type, mincount,),))
+    assert len(players) == 2
+    for player in players:
+        assert len(player.matches) == 6
+        assert not player._best_ratings
+
+    utils.team_models.Player.cache_player_ratings(data_set_type, mincount)
+    players = utils.team_models.Player.player_values(matches, ((data_set_type, mincount,),))
+    for player in players:
+        assert len(player.matches) == 6
+        if player.player_id == 'foo':
+            assert not player.best_rating(mincount)
+        elif player.player_id == 'bar':
+            player.matches = []
+            assert player.best_rating(mincount) == 1016

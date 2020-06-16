@@ -3,16 +3,14 @@
 from collections import defaultdict, Counter
 import csv
 from datetime import datetime
-import json
 import os
 import pathlib
 import re
 from statistics import median, stdev
 
-ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
-
-import numpy as np
 from utils.lookup import Lookup
+
+ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 LOOKUP = Lookup()
 
@@ -29,20 +27,20 @@ class Player:
             self.best_rating(mincount)
         return self._best_stdevs[mincount]
 
-    def best_rating(self, mincount):
+    def best_rating(self, mincount=5):
         """ Returns the median of the slice of ratings length {mincount} with the lowest standard deviation. """
-        if len(self.ratings) < mincount*1.5:
-            return
-
         key = mincount
         # return cached calculation
         if key in self._best_ratings:
             return self._best_ratings[key]
 
+        if len(self.ratings) < mincount*1.5:
+            return
+
         sorted_ratings = sorted(self.ratings)
         best_group = sorted_ratings[:mincount]
         best_std = stdev(best_group)
-        for i in range(1, len(sorted_ratings) - mincount):
+        for i in range(1, len(sorted_ratings) - mincount + 1):
             test_group = sorted_ratings[i:i+mincount]
             test_std = stdev(test_group)
             if test_std <= best_std:
@@ -126,13 +124,46 @@ class Player:
     def rated_players(matches, mincount):
         return [p for p in Player.player_values(matches) if p.best_rating(mincount)]
 
-    def player_values(matches):
+    def player_values(module, matches, include_ratings):
+        """ Players with matches allocated among them.
+        include_ratings is a list of data_set_type-mincount pairs to preload the cached ratings into player.
+        """
+        if include_ratings in ('test', 'model', 'verification',):
+            include_ratings = ((include_ratings, 5,),)
+            
+        cached_ratings = defaultdict(lambda: {})
+        for cache_pair in include_ratings:
+            data_set_type, mincount = cache_pair
+            cache_file = module.Player.rating_cache_file(data_set_type, mincount)
+            if not os.path.exists(cache_file):
+                continue
+            with open(cache_file) as f:
+                for l in f:
+                    player_id, rating = l.strip().split(',')
+                    if rating == 'None':
+                        continue
+                    cached_ratings[cache_pair][player_id] = int(rating)
         player_dict = {}
         for match in matches:
             for player_id in match.players:
-                if player_id not in player_dict: player_dict[player_id] = Player(player_id)
+                if player_id not in player_dict: player_dict[player_id] = module.Player(player_id)
                 player_dict[player_id].matches.append(match)
+        if cached_ratings:
+            for player_id, player in player_dict.items():
+                for k, lookup in cached_ratings.items():
+                    if player_id in lookup:
+                        _, mincount = k
+                        player._best_ratings[mincount] = lookup[player_id]
         return player_dict.values()
+
+    def cache_player_ratings(module, data_set_type, mincount=5):
+        """ Calculate player ratings at mincount and write to cache.
+        n.b. overwrites existing cache. """
+        players = module.Player.player_values(module.MatchReport.all(data_set_type))
+        data_file = module.Player.rating_cache_file(data_set_type, mincount)
+        with open(data_file, 'w') as f:
+            for player in players:
+                f.write('{},{}\n'.format(player.player_id, player.best_rating(mincount)))
 
 class MatchReport():
     """ Holds match information from both players' perspective (loaded from Match records). """
@@ -394,39 +425,3 @@ class User():
         if len(row) > 4:
             u.should_update = row[4] == 'True'
         return u
-
-
-class PlayerRating:
-    """ Caches last calculated best rating for players. """
-    def ratings_for(data_set_type, mincount=5, update=False):
-        data_file = PlayerRating.data_file(data_set_type, mincount)
-        if update or not os.path.exists(data_file):
-            rows = []
-            for player in Player.rated_players(MatchReport.all(data_set_type), mincount):
-                rows.append([player.player_id, player.best_rating(mincount),])
-            with open(data_file, 'w') as f:
-                csv.writer(f).writerows(rows)
-        ratings = {}
-        with open(data_file) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                ratings[row[0]] = int(row[1])
-        return ratings
-
-class CachedPlayer(Player):
-    def __init__(self, player_id, matches, best_rating):
-        self.player_id = player_id
-        self.matches = matches
-        self.best_rating = best_rating
-
-    def rated_players(data_set_type, mincount=5):
-        ratings = PlayerRating.ratings_for(data_set_type, mincount)
-        players = []
-        for player in Player.player_values(MatchReport.all(data_set_type)):
-            if player.player_id in ratings:
-                players.append(CachedPlayer(player.player_id, player.matches, ratings[player.player_id]))
-        return players
-
-if __name__ == '__main__':
-    for data_set_type in ('test', 'model', 'verification',):
-        PlayerRating.ratings_for(data_set_type, update=True)

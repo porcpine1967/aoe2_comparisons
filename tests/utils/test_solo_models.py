@@ -1,8 +1,7 @@
 from collections import Counter
+import csv
 import os
 import pathlib
-
-ROOT_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 import pytest
 
@@ -146,9 +145,9 @@ def test_info_for():
 # Player
 def test_add_civ_percentages():
     player = utils.solo_models.Player('foo')
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:1979688', '1:2', '0', '0']))
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:1979688', '1:2', '0', '0']))
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:1979688', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:bar', '1:2', '0', '0']))
     # One civ
     ctr = Counter()
     has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 20)
@@ -187,9 +186,9 @@ def test_add_civ_percentages():
 def test_add_map_percentages():
     player = utils.solo_models.Player('foo')
     # Started, map_code, civs, ratings, player ids, teams, winner, version
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:1979688', '1:2', '0', '0']))
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:1979688', '1:2', '0', '0']))
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:1979688', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:bar', '1:2', '0', '0']))
     # One map one play
     ctr = Counter()
     has_result = player.add_map_percentages(ctr, 0, 20)
@@ -215,3 +214,58 @@ def test_add_map_percentages():
     assert len(ctr) == 2
     assert ctr['Arabia'] == 2/3.0
     assert ctr['Rivers'] == 1/3.0
+
+def test_best_rating():
+    player = utils.solo_models.Player('bar')
+    # Started, map_code, civs, ratings, player ids, teams, winner, version
+    player.matches.append(utils.solo_models.MatchReport(['1588091225', '9', '11:16', '10:101', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '11:16', '10:102', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091227', '9', '12:17', '100:103', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091228', '22', '13:16', '1000:1013', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091229', '22', '13:16', '1000:1014', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091230', '22', '13:16', '1000:1015', 'foo:bar', '1:2', '0', '0']))
+    # Do not calculate if number of matches less than 1.5 * minimum count
+    assert len(player.ratings) == 6
+    assert player.best_rating(5) == None
+    # Make sure if given the choice the highest choice is given
+    assert player.best_rating(3) == 1014
+    # Make sure result is cached
+    player.matches = []
+    assert player.best_rating(3) == 1014
+    assert player.best_rating(2) == None
+
+def test_cache_best_rating():
+    data_set_type = 'test_cache_best_rating'
+    mincount = 3
+    # remove cache file
+    if os.path.exists(utils.solo_models.Player.rating_cache_file(data_set_type, mincount)):
+        os.remove(utils.solo_models.Player.rating_cache_file(data_set_type, mincount))
+    # Set up match report data
+    match_reports = []
+    match_reports.append(['1588091225', '9', '11:16', '10:101', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091226', '9', '11:16', '10:102', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091227', '9', '12:17', '100:103', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091228', '22', '13:16', '1000:1013', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091229', '22', '13:16', '1000:1014', 'foo:bar', '1:2', '0', '0'])
+    match_reports.append(['1588091230', '22', '13:16', '1000:1015', 'foo:bar', '1:2', '0', '0'])
+    with open(utils.solo_models.MatchReport.data_file(data_set_type), 'w') as f:
+        csv.writer(f).writerows(match_reports)
+
+    # Verify setup
+    matches = utils.solo_models.MatchReport.all(data_set_type)
+    assert len(matches) == 6
+    players = utils.solo_models.Player.player_values(matches, ((data_set_type, mincount,),))
+    assert len(players) == 2
+    for player in players:
+        assert len(player.matches) == 6
+        assert not player._best_ratings
+
+    utils.solo_models.Player.cache_player_ratings(data_set_type, mincount)
+    players = utils.solo_models.Player.player_values(matches, ((data_set_type, mincount,),))
+    for player in players:
+        assert len(player.matches) == 6
+        if player.player_id == 'foo':
+            assert not player.best_rating(mincount)
+        elif player.player_id == 'bar':
+            player.matches = []
+            assert player.best_rating(mincount) == 1014

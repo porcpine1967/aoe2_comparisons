@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """ Generates csv files for visualization in flourish """
+import argparse
 from collections import defaultdict, Counter
 import csv
 import pathlib
@@ -8,9 +9,8 @@ import pathlib
 import numpy as np
 from statsmodels.stats.proportion import proportion_confint
 
-from utils.models import MatchReport, Player, CachedPlayer
-from utils.lookup import Lookup
-
+import utils.solo_models
+import utils.team_models
 ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 GRAPH_DIR = '{}/graphs'.format(ROOT_DIR)
 
@@ -85,136 +85,8 @@ MAPS = {
     'Team Islands': { 'category': 'Water', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/e/ed/Team_Islands.jpg'},
     'Valley': { 'category': 'Land', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/f/fd/Valley_Preview.jpg'},
 }
-class MatchExperience:
-    """ What happened in a match from a single player's point of view."""
-    def __init__(self, rating, civ, enemy_civ, score, won):
-        self.rating = rating
-        self.civ = civ
-        self.enemy_civ = enemy_civ
-        self.score = score
-        self.won = won
-        if won:
-            self.value = 1 - score*0.0011
-        else:
-            self.value = 0
 
-class CivInfo:
-    def __init__(self, name, results):
-        self.name = name
-        self.results = results
-        self.n = len(results)
-        if results:
-            self.cl, self.cu = proportion_confint(sum(results), self.n, .1)
-            self.mean = (self.cl + self.cu)/2
-        else:
-            self.cl = self.cu = self.mean = 0
-        self.points = 0
-        self.csv_mean = '{:.1f}'.format(self.mean * 100)
-
-    def __str__(self):
-        return '{:12} {:.2f} ({:>5})'.format(self.name, self.mean, self.n)
-
-class CivCluster:
-    def __init__(self, base_civ):
-        self.base_civ = base_civ
-        self.mean = base_civ.mean
-        self.civs = [base_civ]
-
-    @property
-    def cluster_mean(self):
-        return np.mean([i for civ in self.civs for i in civ.results])
-
-    def maybe_add(self, other_civ):
-        """ Adds civ to civs if should; returns if added """
-        should_add = self.base_civ.cl < other_civ.mean < self.base_civ.cu
-        if should_add:
-            self.civs.append(other_civ)
-        return should_add
-    def set_civ_means(self):
-        for civ in self.civs:
-            civ.csv_mean = '{:.1f}'.format(100*self.cluster_mean)
-
-def civs_by_snapshots(data_set_type, map_type, snapshot_count):
-    maps = constants()['map_type']
-    map_name = maps[map_type].lower()
-    # No mirrors
-    matches = [match for match in MatchReport.by_map(data_set_type, map_type) if not match.mirror]
-    experiences_raw = []
-    for match in matches:
-        experiences_raw.append(MatchExperience(match.rating_1, match.civ_1, match.civ_2, match.score, match.winner == 1))
-        experiences_raw.append(MatchExperience(match.rating_2, match.civ_2, match.civ_1, match.score, match.winner == 2))
-    experiences = sorted(experiences_raw, key=lambda x: x.rating)
-
-    # Each match has two players, each of which will be counted somewhere
-    total_records = len(experiences)
-    # we want to advance a third of a snapshot for each record set, so...
-    offset = int(total_records/(snapshot_count + 2))
-    print('n = {}'.format(offset*3))
-    hold = 0
-    snapshots = []
-    civ_names = set()
-    row_header = ['Civilization']
-    for _ in range(snapshot_count):
-        civs = defaultdict(lambda: [])
-        rating_max = 0
-        rating_min = 30000
-        for experience in experiences[hold: offset*3 + hold]:
-            rating_max = max(rating_max, experience.rating)
-            rating_min = min(rating_min, experience.rating)
-            civs[experience.civ].append(experience.value)
-        hold += offset
-        row_header.append('{} - {}'.format(rating_min, rating_max))
-        civ_infos = defaultdict(lambda:CivInfo('', []))
-        for name, results in civs.items():
-            civ_names.add(name)
-            civ_infos[name] = CivInfo(name, results)
-        civ_clusters = []
-        current_civ_cluster = None
-        in_clusters = set()
-        civ_infos_s = sorted(civ_infos.values(), key=lambda x: x.mean - x.cl)
-        for civ_info in civ_infos_s:
-            if civ_info in in_clusters:
-                continue
-            current_civ_cluster = CivCluster(civ_info)
-            civ_clusters.append(current_civ_cluster)
-            in_clusters.add(civ_info)
-            for other_ci in civ_infos_s:
-                if other_ci in in_clusters:
-                    continue
-                added = current_civ_cluster.maybe_add(other_ci)
-                if added:
-                    in_clusters.add(other_ci)
-
-        for cluster in civ_clusters:
-            cluster.set_civ_means()
-        snapshots.append(civ_infos)
-    rows = [row_header]
-    for name in sorted(civ_names):
-        row = [name, CIVILIZATIONS[name]['category'], CIVILIZATIONS[name]['image']]
-        for snapshot in snapshots:
-            row.append(snapshot[name].csv_mean)
-        rows.append(row)
-
-    with open('{}/flourish_{}.csv'.format(GRAPH_DIR,map_name), 'w') as f:
-        writer = csv.writer(f)
-        writer.writerows(rows)
-
-# class Player:
-#     def __init__(self, player_id):
-#         self.player_id = player_id
-#         self.civ = None
-#         self.rating = None
-#         self.timestamp = None
-
-#     def maybe_update(self, civ, rating, timestamp):
-#         if not self.timestamp or self.timestamp < timestamp:
-#             self.civ = civ
-#             self.rating = rating
-#             self.timestamp = timestamp
-
-def map_popularity(data_set_type):
-    matches = MatchReport.all(data_set_type)
-    players = Player.player_values(matches)
+def map_popularity(players):
     m = Counter()
     for player in players:
         for map_type in player.maps:
@@ -222,7 +94,7 @@ def map_popularity(data_set_type):
     return m
 
 def civ_popularity_by_rating(players, map_name):
-    print(map_name)
+    print('Civ popularity by rating for {}'.format(map_name))
     edges = [i for i in range(650, 1701, 50)]
     edges.append(10000)
     start = 0
@@ -237,7 +109,7 @@ def civ_popularity_by_rating(players, map_name):
             headers.append('{} - {}'.format(start + 1, edge))
         civ_ctr = Counter()
         counters.append(civ_ctr)
-        snapshot_players = [p for p in players if start < p.best_rating <= edge]
+        snapshot_players = [p for p in players if start < p.best_rating() <= edge]
         for player in snapshot_players:
             if player.add_civ_percentages(civ_ctr, map_name, start, edge):
                 total += 1
@@ -254,19 +126,17 @@ def civ_popularity_by_rating(players, map_name):
         writer = csv.writer(f)
         writer.writerows(rows)
 
-def civ_popularity_by_map(data_set_type):
+def civ_popularity_by_map(players):
+    print('civ_popularity_by_map')
     """ Writes csv for civ popularities by ratings snapshot for every map type."""
-    players = CachedPlayer.rated_players(data_set_type)
     civ_popularity_by_rating(players, 'all')
-    for map_name, count in map_popularity(data_set_type).most_common():
+    for map_name, count in map_popularity(players).most_common():
         if count < 1100:
             continue
-        print(map_name, count)
         civ_popularity_by_rating(players, map_name)
 
-def map_popularity_by_rating(data_set_type):
-    players = CachedPlayer.rated_players(data_set_type)
-    print(len(players))
+def map_popularity_by_rating(players):
+    print('map_popularity_by_rating')
     edges = [i for i in range(650, 1701, 50)]
     edges.append(10000)
     start = 0
@@ -279,7 +149,7 @@ def map_popularity_by_rating(data_set_type):
             headers.append('{} - {}'.format(start + 1, edge))
         map_ctr = Counter()
         counters.append(map_ctr)
-        snapshot_players = [p for p in players if start < p.best_rating <= edge]
+        snapshot_players = [p for p in players if start < p.best_rating() <= edge]
         for player in snapshot_players:
             player.add_map_percentages(map_ctr, start, edge)
         start = edge - 50
@@ -289,15 +159,14 @@ def map_popularity_by_rating(data_set_type):
         row = [map_name, map_info['category'], map_info['image'],]
         for map_ctr in counters:
             row.append(map_ctr[map_name])
-        print(sum(row[3:]))
         rows.append(row)
     with open('{}/flourish_map_popularity.csv'.format(GRAPH_DIR), 'w') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
-def map_popularity_by_number_of_matches(data_set_type):
+def map_popularity_by_number_of_matches(players):
+    print('map_popularity_by_number_of_matches')
     map_counters = defaultdict(lambda: Counter())
-    players = Player.player_values(MatchReport.all(data_set_type))
     for player in players:
         player.add_map_percentages(map_counters[len(player.matches)], 0, 10000)
     rt = 0
@@ -321,7 +190,6 @@ def map_popularity_by_number_of_matches(data_set_type):
         else:
             print_key = str(start_key)
         headers.append(print_key)
-        print('{:>10}: {:.2f}'.format(print_key, sum(hold_counter.values())))
         start_key = None
         hold_counter = Counter()
     if end_key > start_key:
@@ -330,21 +198,30 @@ def map_popularity_by_number_of_matches(data_set_type):
         print_key = str(start_key)
     headers.append(print_key)
     counters.append(hold_counter)
-    print('{:>10}: {:.2f}'.format(print_key, sum(hold_counter.values())))
-    print(headers)
     row_header = ['Map', 'Category', 'Image'] + headers
     rows = [row_header]
     for map_name, map_info in MAPS.items():
         row = [map_name, map_info['category'], map_info['image'],]
         for map_ctr in counters:
             row.append(map_ctr[map_name])
-        print(sum(row[3:]))
         rows.append(row)
     with open('{}/flourish_map_popularity_by_num_matches.csv'.format(GRAPH_DIR), 'w') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
+
+def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('klass', choices=('team', 'solo',), help="team or solo")
+    parser.add_argument('--source', default='model', choices=('test', 'model', 'verification',), help="which data set type to use (default model)")
+    args = parser.parse_args()
+    if args.klass == 'team':
+        module = utils.team_models
+    else:
+        module = utils.solo_models
+    players = [p for p in module.Player.player_values(module.MatchReport.all(args.source), args.source) if p.best_rating()]
+    map_popularity_by_number_of_matches(players)
+    map_popularity_by_rating(players)
+    civ_popularity_by_map(players)
+
 if __name__ == '__main__':
-    data_set_type = 'model'
-    map_popularity_by_number_of_matches(data_set_type)
-    map_popularity_by_rating(data_set_type)
-    civ_popularity_by_map(data_set_type)
+    run()
