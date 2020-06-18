@@ -7,6 +7,7 @@ import utils.models
 leaderboard = 3
 
 DATA_DIR = '{}/data'.format(utils.models.ROOT_DIR)
+GRAPH_DIR = '{}/graphs'.format(utils.models.ROOT_DIR)
 
 MAPS = [
     'Acropolis',

@@ -7,6 +7,7 @@ import utils.models
 leaderboard = 4
 
 DATA_DIR = '{}/team-data'.format(utils.models.ROOT_DIR)
+GRAPH_DIR = '{}/team-graphs'.format(utils.models.ROOT_DIR)
 
 MAPS = [
     'Arabia',

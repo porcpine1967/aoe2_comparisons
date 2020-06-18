@@ -4,6 +4,7 @@
 /tests/data/*_data.csv
 /tests/team-data/*_data.csv
 /graphs/flourish*
+/team-graphs/flourish*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

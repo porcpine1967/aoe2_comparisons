@@ -12,7 +12,6 @@ import os
 import matplotlib.pyplot as plt
 
 from civs.flourish import CIVILIZATIONS
-ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
 
 CACHED_TEMPLATE = '{}/cached_civ_popularity_map_for_{}.pickle'
 
@@ -216,7 +215,7 @@ def loaded_civs(data_set_type, module, players=None):
                 civs[civ].totals['{}-{}'.format(map_name, rating_keys[ctr_idx])] = total
     return civs, maps_with_data, rating_keys
 
-def civs_x_maps_heatmap_table(civs, maps, normalize):
+def civs_x_maps_heatmap_table(civs, maps):
     """ Returns a single heatmap html table of civs x maps """
     # Build data arrays
     civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
@@ -231,7 +230,7 @@ def civs_x_maps_heatmap_table(civs, maps, normalize):
             row.append((civ.popularity[map_name], civ.rankings[map_name],))
             civ_popularities.append(civ.popularity[map_name])
     max_value = sorted(civ_popularities, reverse=True)[len(maps)-1]
-    def new_normalize(x):
+    def normalize(x):
         if x == 0: return x
         if x > max_value: return 1
         return x/max_value
@@ -244,10 +243,10 @@ def civs_x_maps_heatmap_table(civs, maps, normalize):
     for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x)):
         ylabels.append(map_name)
         data.append(map_dict[map_name])
-    html_rows.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', new_normalize))
+    html_rows.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', normalize))
     return '\n'.join(html_rows)
 
-def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normalize):
+def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys):
     """ Returns a set of heatmap html tables of civs x maps, one table for every rating bucket."""
     html_rows = ['<h2>Popularity of Civs on Maps by Rating</h2>',]
     civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
@@ -263,7 +262,7 @@ def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normal
                 row.append((civ.popularity['{}-{}'.format(map_name, rk)], civ.rankings['{}-{}'.format(map_name, rk)],))
                 civ_popularities.append(civ.popularity['{}-{}'.format(map_name, rk)])
         max_value = sorted(civ_popularities, reverse=True)[len(civs) - 1]
-        def new_normalize(x):
+        def normalize(x):
             if x == 0: return x
             if x > max_value:
                 return 1
@@ -277,12 +276,12 @@ def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normal
         for map_name in sorted(map_dict, key=lambda x: MAP_ORDER.index(x)):
             ylabels.append(map_name)
             data.append(map_dict[map_name])
-        html_rows.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', new_normalize))
+        html_rows.append(to_heatmap_table(data, xlabels, ylabels, 'Map Name', normalize))
     return '\n'.join(html_rows)
 
-def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, normalize):
+def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, module):
     """ Generates html representation of each rating's popularity by map and civ. """
-    with open('{}/civs/rating_popularity_data.html'.format(ROOT_DIR), 'w') as f:
+    with open('{}/rating_popularity_data.html'.format(module.GRAPH_DIR), 'w') as f:
         f.write("""<!doctype html>
 
 <html lang="en">
@@ -302,12 +301,12 @@ def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, normalize):
 </head>
 <body>
 """)
-        f.write(civs_x_maps_heatmap_table(civs, maps, None))
-        f.write(civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normalize))
+        f.write(civs_x_maps_heatmap_table(civs, maps))
+        f.write(civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys))
 
-def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, data_set_type, module):
+def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, data_set_type, module, normalize):
     """ Generates html representation of each civ's popularity by map and rating. """
-    with open('{}/civs/civ_popularity_data.html'.format(ROOT_DIR), 'w') as f:
+    with open('{}/civ_popularity_data.html'.format(module.GRAPH_DIR), 'w') as f:
         f.write("""<!doctype html>
 
 <html lang="en">
@@ -335,7 +334,7 @@ def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, da
 def civs_x_ratings_heatmap_table(civs, rating_keys, civ_names):
     civ_popularities = [civ.popularity[rk] for rk in rating_keys for civ in civs.values()]
     max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)-1]
-    def new_normalize(x):
+    def normalize(x):
         if max_value == 0:
             return 0
         if x > max_value:
@@ -344,12 +343,12 @@ def civs_x_ratings_heatmap_table(civs, rating_keys, civ_names):
     data = []
     for civ_name in civ_names:
         data.append(civs[civ_name].heatmap_rating_data('all', rating_keys))
-    return to_heatmap_table(data, rating_keys, civ_names, 'Civilization', new_normalize)
+    return to_heatmap_table(data, rating_keys, civ_names, 'Civilization', normalize)
 
 def civs_x_ratings_heatmap_tables_per_map(civs, map_name, rating_keys, civ_names):
     civ_popularities = [civ.popularity['{}-{}'.format(map_name, rk)] for rk in rating_keys for civ in civs.values()]
     max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)-1]
-    def new_normalize(x):
+    def normalize(x):
         if max_value == 0:
             return 0
         if x > max_value:
@@ -358,11 +357,11 @@ def civs_x_ratings_heatmap_tables_per_map(civs, map_name, rating_keys, civ_names
     data = []
     for civ_name in civ_names:
         data.append(civs[civ_name].heatmap_rating_data(map_name, rating_keys))
-    return to_heatmap_table(data, rating_keys, civ_names, 'Civilization', new_normalize)
+    return to_heatmap_table(data, rating_keys, civ_names, 'Civilization', normalize)
 
-def write_civs_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize):
+def write_civs_x_ratings_heatmaps_to_html(civs, maps, rating_keys, module):
     """ Generates html representation of each map's civ popularity by rating. """
-    with open('{}/civs/map_popularity_data.html'.format(ROOT_DIR), 'w') as f:
+    with open('{}/map_popularity_data.html'.format(module.GRAPH_DIR), 'w') as f:
         f.write("""<!doctype html>
 
 <html lang="en">
@@ -564,11 +563,11 @@ def write_all():
     civs, maps_with_data, rating_keys = cached_results(data_set_type, module )
     half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
     mapping = popularity_cdf(civs.values())
-    def normalized(x):
+    def normalize(x):
         return mapping[round(x, 3)]
-    write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized, data_set_type, module)
-    write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
-    write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, normalized)
+    write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, data_set_type, module, normalize)
+    write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, module)
+    write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, module)
 
 def run():
     write_all()

@@ -11,8 +11,6 @@ from statsmodels.stats.proportion import proportion_confint
 
 import utils.solo_models
 import utils.team_models
-ROOT_DIR = str(pathlib.Path(__file__).parent.parent.absolute())
-GRAPH_DIR = '{}/graphs'.format(ROOT_DIR)
 
 CIVILIZATIONS = {
     'Britons': { 'category': 'The Age of Kings', 'image': 'https://vignette.wikia.nocookie.net/ageofempires/images/a/ae/CivIcon-Britons.png'},
@@ -93,7 +91,7 @@ def map_popularity(players):
             m[map_type] += 1
     return m
 
-def civ_popularity_by_rating(players, map_name):
+def civ_popularity_by_rating(players, map_name, module):
     print('Civ popularity by rating for {}'.format(map_name))
     edges = [i for i in range(650, 1701, 50)]
     edges.append(10000)
@@ -122,20 +120,20 @@ def civ_popularity_by_rating(players, map_name):
         for idx, civ_ctr in enumerate(counters):
             row.append(civ_ctr[civ_name])
         rows.append(row)
-    with open('{}/flourish_{}_popularity.csv'.format(GRAPH_DIR, map_name.lower()), 'w') as f:
+    with open('{}/flourish_{}_popularity.csv'.format(module.GRAPH_DIR, map_name.lower()), 'w') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
-def civ_popularity_by_map(players):
+def civ_popularity_by_map(players, module):
     print('civ_popularity_by_map')
     """ Writes csv for civ popularities by ratings snapshot for every map type."""
-    civ_popularity_by_rating(players, 'all')
+    civ_popularity_by_rating(players, 'all', module)
     for map_name, count in map_popularity(players).most_common():
         if count < 1100:
             continue
-        civ_popularity_by_rating(players, map_name)
+        civ_popularity_by_rating(players, map_name, module)
 
-def map_popularity_by_rating(players):
+def map_popularity_by_rating(players, module):
     print('map_popularity_by_rating')
     edges = [i for i in range(650, 1701, 50)]
     edges.append(10000)
@@ -160,11 +158,11 @@ def map_popularity_by_rating(players):
         for map_ctr in counters:
             row.append(map_ctr[map_name])
         rows.append(row)
-    with open('{}/flourish_map_popularity.csv'.format(GRAPH_DIR), 'w') as f:
+    with open('{}/flourish_map_popularity.csv'.format(module.GRAPH_DIR), 'w') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
-def map_popularity_by_number_of_matches(players):
+def map_popularity_by_number_of_matches(players, module):
     print('map_popularity_by_number_of_matches')
     map_counters = defaultdict(lambda: Counter())
     for player in players:
@@ -205,7 +203,7 @@ def map_popularity_by_number_of_matches(players):
         for map_ctr in counters:
             row.append(map_ctr[map_name])
         rows.append(row)
-    with open('{}/flourish_map_popularity_by_num_matches.csv'.format(GRAPH_DIR), 'w') as f:
+    with open('{}/flourish_map_popularity_by_num_matches.csv'.format(module.GRAPH_DIR), 'w') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
@@ -219,9 +217,9 @@ def run():
     else:
         module = utils.solo_models
     players = [p for p in module.Player.player_values(module.MatchReport.all(args.source), args.source) if p.best_rating()]
-    map_popularity_by_number_of_matches(players)
-    map_popularity_by_rating(players)
-    civ_popularity_by_map(players)
+    map_popularity_by_number_of_matches(players, module)
+    map_popularity_by_rating(players, module)
+    civ_popularity_by_map(players, module)
 
 if __name__ == '__main__':
     run()
