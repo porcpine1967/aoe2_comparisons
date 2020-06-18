@@ -11,11 +11,12 @@ import os
 
 import matplotlib.pyplot as plt
 
-from civs.flourish import CIVILIZATIONS
+from utils.lookup import CIVILIZATIONS
 
 CACHED_TEMPLATE = '{}/cached_civ_popularity_map_for_{}.pickle'
 
 import utils.solo_models
+import utils.team_models
 
 MAP_ORDER = [
     'Steppe',
@@ -303,7 +304,7 @@ def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, module):
         f.write(civs_x_maps_heatmap_table(civs, maps))
         f.write(civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys))
 
-def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, data_set_type, module, normalize):
+def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, data_set_type, module):
     """ Generates html representation of each civ's popularity by map and rating. """
     with open('{}/civ_popularity_data.html'.format(module.GRAPH_DIR), 'w') as f:
         f.write("""<!doctype html>
@@ -326,6 +327,15 @@ def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, data_set_type
 <body>
 """)
         f.write(all_civs_map_x_rating_heatmap_table(module, data_set_type, rating_keys))
+        civ_popularities = [civ.popularity['{}-{}'.format(map_name, rk)] for rk in rating_keys for civ in civs.values() for map_name in maps]
+        max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)*len(civs)-1]
+        def normalize(x):
+            if max_value == 0:
+                return 0
+            if x > max_value:
+                return 1
+            return x/max_value
+
         f.write('<h2>Popularity of Each Civ Segmented by Map and Ranking</h2>')
         for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall']):
             f.write(civ.map_x_rating_heatmap_table(maps, rating_keys, normalize))
@@ -457,20 +467,6 @@ def cached_results(data_set_type, module):
             civs[cc.name] = Civ.from_cache(cc)
     return civs, maps_with_data, rating_keys
 
-def popularity_cdf(civs):
-    """ CDF of popularities to emphasize minor differences and flatten major ones. """
-    ctr = Counter()
-    for civ in civs:
-        for popularity in civ.popularity.values():
-            ctr[round(popularity, 3)] += 1
-    rt = 0
-    total = float(sum(ctr.values()))
-    mapping = {0:0}
-    for popularity in sorted(ctr):
-        rt += ctr[popularity]
-        mapping[round(popularity, 3)] = rt/total
-    return mapping
-
 def heatmap_key_table(mapping):
     """ html table of color grades of a given mapping. Assumes keys of map are .3f """
     data = []
@@ -548,8 +544,7 @@ def rebuild_cache(module):
         module.Player.cache_player_ratings(data_set_type)
         cache_results(data_set_type, module)
 
-def write_all():
-    """ Write out all the tables to all the files. """
+def base_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('klass', choices=('team', 'solo', 'all',), help="team, solo, or all")
     parser.add_argument('--source', default='model', choices=('test', 'model', 'verification',), help="which data set type to use (default model)")
@@ -560,14 +555,15 @@ def write_all():
         modules = (utils.solo_models,)
     elif args.klass == 'all':
         modules = (utils.solo_models, utils.team_models,)
-    data_set_type = args.source
+    return modules, args.source
+
+def write_all():
+    """ Write out all the tables to all the files. """
+    modules, data_set_type = base_args()
     for module in modules:
         civs, maps_with_data, rating_keys = cached_results(data_set_type, module )
         half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
-        mapping = popularity_cdf(civs.values())
-        def normalize(x):
-            return mapping[round(x, 3)]
-        write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, data_set_type, module, normalize)
+        write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, data_set_type, module)
         write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, module)
         write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, module)
 
