@@ -18,25 +18,6 @@ CACHED_TEMPLATE = '{}/cached_civ_popularity_map_for_{}.pickle'
 
 import utils.solo_models
 
-MAPS = [
-    'Arabia',
-    'Arena',
-    'MegaRandom',
-    'Nomad',
-    'Hideout',
-    'Lombardia',
-    'Black Forest',
-    'Scandinavia',
-    'Golden Swamp',
-    'Hill Fort',
-    'Oasis',
-    'Gold Rush',
-    'Steppe',
-    'Team Islands',
-    'Golden Pit',
-    'Mediterranean',
-    'Wolf Hill',
-]
 MAP_ORDER = [
     'Steppe',
     'Mountain Pass',
@@ -211,7 +192,7 @@ def loaded_civs(data_set_type, module, players=None):
 
     # Calculate overall popularity by map
     maps_with_data = []
-    for map_name in MAPS:
+    for map_name in module.MAPS:
         for ctr in civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, [10000]):
             if ctr:
                 maps_with_data.append(map_name)
@@ -277,7 +258,7 @@ def civs_x_maps_heatmap_tables_per_rating_bucket(civs, maps, rating_keys, normal
                 civ = civs[civ_name]
                 row.append((civ.popularity['{}-{}'.format(map_name, rk)], civ.rankings['{}-{}'.format(map_name, rk)],))
                 civ_popularities.append(civ.popularity['{}-{}'.format(map_name, rk)])
-        max_value = sorted(civ_popularities, reverse=True)[0]
+        max_value = sorted(civ_popularities, reverse=True)[len(civs) - 1]
         def new_normalize(x):
             if x == 0: return x
             if x > max_value:
@@ -503,7 +484,7 @@ def map_popularity_counters_bucketed_by_rating(players, edges):
 def all_civs_map_x_rating_heatmap_table(module, data_set_type, viz_rating_keys=None):
     """ Returns a single heatmap html table of maps x ratings """
     maps = {}
-    for k in MAPS:
+    for k in module.MAPS:
         maps[k] = Map(k)
     edges = [i for i in range(650, 1701, 50)]
     start = 0

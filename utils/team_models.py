@@ -8,6 +8,26 @@ leaderboard = 4
 
 DATA_DIR = '{}/team-data'.format(utils.models.ROOT_DIR)
 
+MAPS = [
+    'Arabia',
+    'Arena',
+    'MegaRandom',
+    'Nomad',
+    'Hideout',
+    'Lombardia',
+    'Black Forest',
+    'Scandinavia',
+    'Golden Swamp',
+    'Hill Fort',
+    'Oasis',
+    'Gold Rush',
+    'Steppe',
+    'Team Islands',
+    'Golden Pit',
+    'Mediterranean',
+    'Wolf Hill',
+]
+
 class Player(utils.models.Player):
     def rating_cache_file(data_set_type, mincount):
         return '{}/player_rating_{}_{}_data.csv'.format(DATA_DIR, data_set_type, mincount)
