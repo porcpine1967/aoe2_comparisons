@@ -131,7 +131,11 @@ class Civ(Rankable):
         return '\n'.join(html)
 
     def heatmap_rating_data(self, map_name, rating_keys):
-        row = [(self.popularity['{}-{}'.format(map_name, rk)],
+        if map_name == 'all':
+            row = [(self.popularity[rk],
+                    self.rankings[rk]) for rk in rating_keys]
+        else:
+            row = [(self.popularity['{}-{}'.format(map_name, rk)],
                     self.rankings['{}-{}'.format(map_name, rk)]) for rk in rating_keys]
         return row
 
@@ -291,6 +295,7 @@ def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, normalize):
   <link rel="stylesheet" href="../styles/normalize.css">
   <style>
       body {margin: 5em}
+      td.ylabel { width: 7em; }
       td.data { text-align: center; }
       th { width: 4em; }
   </style>
@@ -315,6 +320,7 @@ def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, da
   <link rel="stylesheet" href="../styles/normalize.css">
   <style>
       body {margin: 5em}
+      td.ylabel { width: 7em; }
       td.data { text-align: center; }
       th { width: 4em; }
   </style>
@@ -323,8 +329,36 @@ def write_maps_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize, da
 """)
         f.write(all_civs_map_x_rating_heatmap_table(module, data_set_type, rating_keys))
         f.write('<h2>Popularity of Each Civ Segmented by Map and Ranking</h2>')
-        for civ_name in sorted(civs):
-            f.write(civs[civ_name].map_x_rating_heatmap_table(maps, rating_keys, normalize))
+        for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall']):
+            f.write(civ.map_x_rating_heatmap_table(maps, rating_keys, normalize))
+
+def civs_x_ratings_heatmap_table(civs, rating_keys, civ_names):
+    civ_popularities = [civ.popularity[rk] for rk in rating_keys for civ in civs.values()]
+    max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)-1]
+    def new_normalize(x):
+        if max_value == 0:
+            return 0
+        if x > max_value:
+            return 1
+        return x/max_value
+    data = []
+    for civ_name in civ_names:
+        data.append(civs[civ_name].heatmap_rating_data('all', rating_keys))
+    return to_heatmap_table(data, rating_keys, civ_names, 'Civilization', new_normalize)
+
+def civs_x_ratings_heatmap_tables_per_map(civs, map_name, rating_keys, civ_names):
+    civ_popularities = [civ.popularity['{}-{}'.format(map_name, rk)] for rk in rating_keys for civ in civs.values()]
+    max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)-1]
+    def new_normalize(x):
+        if max_value == 0:
+            return 0
+        if x > max_value:
+            return 1
+        return x/max_value
+    data = []
+    for civ_name in civ_names:
+        data.append(civs[civ_name].heatmap_rating_data(map_name, rating_keys))
+    return to_heatmap_table(data, rating_keys, civ_names, 'Civilization', new_normalize)
 
 def write_civs_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize):
     """ Generates html representation of each map's civ popularity by rating. """
@@ -350,21 +384,14 @@ def write_civs_x_ratings_heatmaps_to_html(civs, maps, rating_keys, normalize):
         f.write('<h2>Popularity of Each Civ by Rating per Map</h2>\n')
         civ_names = [civ.name for civ in sorted(civs.values(), key=lambda x: x.rankings['Overall'])]
         total_civ = list(civs.values())[0]
+        total = int(sum([total_civ.totals[rk] for rk in rating_keys]))
+        f.write('<h3>All Maps (n={:,})</h3>\n'.format(total))
+        f.write(civs_x_ratings_heatmap_table(civs, rating_keys, civ_names))
         for map_name in sorted(maps, key=lambda x: total_civ.totals[x], reverse=True):
-            civ_popularities = [civ.popularity['{}-{}'.format(map_name, rk)] for rk in rating_keys for civ in civs.values()]
-            max_value = sorted(civ_popularities, reverse=True)[len(rating_keys)-1]
-            def new_normalize(x):
-                if max_value == 0:
-                    return 0
-                if x > max_value:
-                    return 1
-                return x/max_value
             total = int(sum([total_civ.totals['{}-{}'.format(map_name, rk)] for rk in rating_keys]))
-            f.write('<h3>{} (n={:,})</h3>\n'.format(map_name, total))
-            data = []
-            for civ_name in civ_names:
-                data.append(civs[civ_name].heatmap_rating_data(map_name, rating_keys))
-            f.write(to_heatmap_table(data, rating_keys, civ_names, 'Civilization', new_normalize))
+            f.write('\n<h3>{} (n={:,})</h3>\n'.format(map_name, total))
+            f.write(civs_x_ratings_heatmap_tables_per_map(civs, map_name, rating_keys, civ_names))
+
 class Similarity:
     def __init__(self, map_name, similarity_rating):
         self.map_name = map_name
