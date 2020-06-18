@@ -12,6 +12,11 @@ def set_model_data_file_templates():
         utils.solo_models.DATA_DIR = utils.solo_models.DATA_DIR.replace('/data', '/tests/data')
     if not '/tests' in utils.team_models.DATA_DIR:
         utils.team_models.DATA_DIR = utils.team_models.DATA_DIR.replace('/team-data', '/tests/team-data')
+    # Make sure all the files exist to hit with stat
+    for module in (utils.solo_models, utils.team_models):
+        for data_set_type in ('test', 'model', 'verification',):
+            with open (module.MatchReport.data_file(data_set_type), 'a') as f:
+                f.write('')
 
 def test_build_files():
     data_set_types = ('test', 'model', 'verification',)

@@ -173,7 +173,7 @@ def new_matches_and_ratings(to_check, checked, module):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for unchecked in executor.map(functools.partial(fetch_unchecked, module=module, checked=checked), to_check):
             to_download.update(unchecked)
-    
+
     print('Downloading {} profiles'.format(len(to_download)))
     with concurrent.futures.ThreadPoolExecutor() as p:
         p.map(functools.partial(both, module=module), to_download)

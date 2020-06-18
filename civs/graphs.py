@@ -294,9 +294,8 @@ def write_civs_x_maps_heatmaps_to_html(civs, maps, rating_keys, module):
   <link rel="stylesheet" href="../styles/normalize.css">
   <style>
       body {margin: 5em}
-      td.ylabel { width: 7em; }
-      td.data { text-align: center; }
-      th { width: 4em; }
+      th.xlabel { font-size: 6pt; padding: 0; width: 2.5em}
+      td.data { text-align: center; width: 2.5em}
   </style>
 </head>
 <body>
@@ -552,22 +551,25 @@ def rebuild_cache(module):
 def write_all():
     """ Write out all the tables to all the files. """
     parser = argparse.ArgumentParser()
-    parser.add_argument('klass', choices=('team', 'solo',), help="team or solo")
+    parser.add_argument('klass', choices=('team', 'solo', 'all',), help="team, solo, or all")
     parser.add_argument('--source', default='model', choices=('test', 'model', 'verification',), help="which data set type to use (default model)")
     args = parser.parse_args()
     if args.klass == 'team':
-        module = utils.team_models
-    else:
-        module = utils.solo_models
+        modules = (utils.team_models,)
+    elif args.klass == 'solo':
+        modules = (utils.solo_models,)
+    elif args.klass == 'all':
+        modules = (utils.solo_models, utils.team_models,)
     data_set_type = args.source
-    civs, maps_with_data, rating_keys = cached_results(data_set_type, module )
-    half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
-    mapping = popularity_cdf(civs.values())
-    def normalize(x):
-        return mapping[round(x, 3)]
-    write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, data_set_type, module, normalize)
-    write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, module)
-    write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, module)
+    for module in modules:
+        civs, maps_with_data, rating_keys = cached_results(data_set_type, module )
+        half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
+        mapping = popularity_cdf(civs.values())
+        def normalize(x):
+            return mapping[round(x, 3)]
+        write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, data_set_type, module, normalize)
+        write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, module)
+        write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, module)
 
 def run():
     write_all()

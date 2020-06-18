@@ -81,7 +81,7 @@ class Match(utils.models.Match):
         else:
             teams = (2, 1,)
         return { self.player_id_1: { 'civ': self.civ_1, 'rating': self.rating_1, 'team': teams[0] },
-                 self.player_id_2: { 'civ': self.civ_2, 'rating': self.rating_2, 'team': teams[1] } } 
+                 self.player_id_2: { 'civ': self.civ_2, 'rating': self.rating_2, 'team': teams[1] } }
 
     @property
     def to_csv(self):

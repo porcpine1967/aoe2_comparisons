@@ -130,7 +130,7 @@ class Player:
         """
         if include_ratings in ('test', 'model', 'verification',):
             include_ratings = ((include_ratings, 5,),)
-            
+
         cached_ratings = defaultdict(lambda: {})
         for cache_pair in include_ratings:
             data_set_type, mincount = cache_pair
