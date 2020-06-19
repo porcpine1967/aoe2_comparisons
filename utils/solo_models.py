@@ -34,6 +34,9 @@ MAPS = [
     'Team Islands',
     ]
 
+def as_str():
+    return 'Ranked 1v1 Matches'
+
 class Player(utils.models.Player):
     def rating_cache_file(data_set_type, mincount):
         return '{}/player_rating_{}_{}_data.csv'.format(DATA_DIR, data_set_type, mincount)

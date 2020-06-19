@@ -29,6 +29,9 @@ MAPS = [
     'Wolf Hill',
 ]
 
+def as_str():
+    return 'Ranked Team Matches'
+
 class Player(utils.models.Player):
     def rating_cache_file(data_set_type, mincount):
         return '{}/player_rating_{}_{}_data.csv'.format(DATA_DIR, data_set_type, mincount)

@@ -91,6 +91,9 @@ class Rankable:
         self.popularity = defaultdict(default_popularity)
         self.totals = defaultdict(default_popularity)
 
+class Rating(Rankable):
+    """ Simple object for holding rankable data for ratings."""
+    pass
 class Map(Rankable):
     """ Simple object for holding rankable data for maps. """
     pass
@@ -557,18 +560,84 @@ def base_args():
         modules = (utils.solo_models, utils.team_models,)
     return modules, args.source
 
-def write_all():
-    """ Write out all the tables to all the files. """
+def runner(fun):
+    """ Runs a function with civs, maps_with_data, and rating_keys as arguments. """
     modules, data_set_type = base_args()
     for module in modules:
-        civs, maps_with_data, rating_keys = cached_results(data_set_type, module )
-        half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
-        write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, data_set_type, module)
-        write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, module)
-        write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, module)
+        civs, maps_with_data, rating_keys = cached_results(data_set_type, module)
+        fun(module, data_set_type, civs, maps_with_data, rating_keys)
 
+def write_all(module, data_set_type, civs, maps_with_data, rating_keys):
+    """ Write out all the tables to all the files. """
+    half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
+    write_maps_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, data_set_type, module)
+    write_civs_x_maps_heatmaps_to_html(civs, maps_with_data, half_keys, module)
+    write_civs_x_ratings_heatmaps_to_html(civs, maps_with_data, half_keys, module)
+
+def cdfs(module, data_set_type, civs, maps, rating_keys):
+    print(module.as_str())
+    half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
+    kt = '{}-{}'
+    ratings_a = {}
+    ratings_b = {}
+    rating_a_civmap_totals = defaultdict(default_popularity)
+    rating_b_civmap_totals = defaultdict(default_popularity)
+    civmap_keys = set()
+    for rk in half_keys:
+        ratings_a[rk] = Rating(rk)
+        ratings_b[rk] = Rating(rk)
+    for civ_name, civ in civs.items():
+        for rk in half_keys:
+            rating = ratings_a[rk]
+            rating.rankings[civ_name] = civ.rankings[rk]
+            rating.popularity[civ_name] = civ.popularity[rk]
+            rating.totals[civ_name] = civ.popularity[rk]*civ.totals[rk]
+            for map_name in maps:
+                key = kt.format(map_name, rk)
+                cm_key = kt.format(civ_name, map_name)
+                playcounts = civ.popularity[key]*civ.totals[key]
+                rating.totals[cm_key] = playcounts
+                rating_a_civmap_totals[rk] += playcounts
+
+                ratings_b[rk].popularity[cm_key] = civ.popularity[key]
+                rating_b_civmap_totals[rk] += civ.popularity[key]
+                civmap_keys.add(cm_key)
+
+    print('Overall Civs ({})'.format(len(civs)))
+    for rk, rating in ratings_a.items():
+        data = []
+        rt = 0
+        for popularity_key in sorted(civs, key=lambda x: rating.popularity[x], reverse=True):
+            rt += rating.popularity[popularity_key]
+            data.append(rt)
+        print_cdf(rk, data, len(civs))
+        
+    print('Weighted Maps ({})'.format(len(civmap_keys)))
+    for rk, rating in ratings_a.items():
+        data = []
+        rt = 0
+        for popularity_key in sorted(civmap_keys, key=lambda x: rating.totals[x], reverse=True):
+            rt += rating.totals[popularity_key]/rating_a_civmap_totals[rk]
+            data.append(rt)
+        print_cdf(rk, data, len(civmap_keys))
+
+    print('Equal Maps ({})'.format(len(civmap_keys)))
+    for rk, rating in ratings_b.items():
+        data = []
+        rt = 0
+        for popularity_key in sorted(civmap_keys, key=lambda x: rating.popularity[x], reverse=True):
+            rt += rating.popularity[popularity_key]/rating_b_civmap_totals[rk]
+            data.append(rt)
+        print_cdf(rk, data, len(civmap_keys))
+
+def print_cdf(rk, data, t):
+    for idx, d in enumerate(data):
+        if d > 0.5:
+            count = idx + d - 0.5
+            print('{:>9} {:>4} ({:>4}%)'.format(rk, idx, round(100*count/t, 1)))
+            break
 def run():
-    write_all()
+    runner(cdfs)
 
 if __name__ == '__main__':
     run()
