@@ -146,8 +146,8 @@ def test_info_for():
 def test_add_civ_percentages():
     player = utils.solo_models.Player('foo')
     player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:bar', '1:2', '0', '0']))
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:bar', '1:2', '0', '0']))
-    player.matches.append(utils.solo_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:bar', '1:2', '0', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:bar', '1:2', '1', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:bar', '1:2', '2', '0']))
     # One civ
     ctr = Counter()
     has_result = player.add_civ_percentages(ctr, 'Arabia', 0, 20)
@@ -182,6 +182,61 @@ def test_add_civ_percentages():
     assert ctr['Goths'] == 1/3.0
     assert ctr['Huns'] == 1/3.0
     assert ctr['Incas'] == 1/3.0
+
+def test_add_win_percentages():
+    player = utils.solo_models.Player('foo')
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '11:16', '10:1014', 'foo:bar', '1:2', '1', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '9', '12:17', '100:1014', 'foo:bar', '1:2', '2', '0']))
+    player.matches.append(utils.solo_models.MatchReport(['1588091226', '22', '13:16', '1000:1014', 'foo:bar', '1:2', '1', '0']))
+    # One civ
+    win_ctr = Counter()
+    total_ctr = Counter()
+    has_result = player.add_win_percentages(win_ctr, total_ctr, 'Arabia', 0, 20)
+    assert has_result
+    assert len(win_ctr) == 1
+    assert win_ctr['Goths'] == 1
+    assert len(total_ctr) == 1
+    assert total_ctr['Goths'] == 1
+    # Two civs
+    win_ctr = Counter()
+    total_ctr = Counter()
+    has_result = player.add_win_percentages(win_ctr, total_ctr, 'Arabia', 0, 2000)
+    assert has_result
+    assert len(total_ctr) == 2
+    assert win_ctr['Goths'] == .5
+    assert total_ctr['Goths'] == .5
+    assert win_ctr['Huns'] == 0
+    assert total_ctr['Huns'] == .5
+    # # Different map
+    win_ctr = Counter()
+    total_ctr = Counter()
+    has_result = player.add_win_percentages(win_ctr, total_ctr, 'Rivers', 0, 2000)
+    assert has_result
+    assert len(total_ctr) == 1
+    assert win_ctr['Incas'] == 1
+    assert total_ctr['Incas'] == 1
+    # # All
+    win_ctr = Counter()
+    total_ctr = Counter()
+    has_result = player.add_win_percentages(win_ctr, total_ctr, 'all', 0, 2000)
+    assert has_result
+    assert len(total_ctr) == 3
+    assert win_ctr['Goths'] == 1/3.0
+    assert win_ctr['Huns'] == 0
+    assert win_ctr['Incas'] == 1/3.0
+    assert total_ctr['Goths'] == 1/3.0
+    assert total_ctr['Huns'] == 1/3.0
+    assert total_ctr['Incas'] == 1/3.0
+    # No Result does not update
+    has_result = player.add_win_percentages(win_ctr, total_ctr, 'No such map', 0, 2000)
+    assert not has_result
+    assert len(total_ctr) == 3
+    assert win_ctr['Goths'] == 1/3.0
+    assert win_ctr['Huns'] == 0
+    assert win_ctr['Incas'] == 1/3.0
+    assert total_ctr['Goths'] == 1/3.0
+    assert total_ctr['Huns'] == 1/3.0
+    assert total_ctr['Incas'] == 1/3.0
 
 def test_add_map_percentages():
     player = utils.solo_models.Player('foo')

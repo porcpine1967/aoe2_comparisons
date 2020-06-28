@@ -63,6 +63,25 @@ class Player:
             ctr[civ] += count/total
         return bool(civ_ctr)
 
+    def add_win_percentages(self, win_ctr, total_ctr, map_name, start, edge):
+        """ Proportionally adds civs within range to ctr. """
+        win_civ_ctr = Counter()
+        total_civ_ctr = Counter()
+        for m in self.matches:
+            civ, rating, winner = m.info_for(self.player_id)
+            if winner == 'na':
+                continue
+            if start < rating <= edge and (map_name == 'all' or m.map == map_name):
+                total_civ_ctr[civ] += 1
+                if winner == 'won':
+                    win_civ_ctr[civ] += 1
+        total = float(sum(total_civ_ctr.values()))
+        for civ, count in total_civ_ctr.items():
+            total_ctr[civ] += count/total
+        for civ, count in win_civ_ctr.items():
+            win_ctr[civ] += count/total
+        return bool(total_civ_ctr)
+
     def add_map_percentages(self, ctr, start, edge):
         """ Proportionally adds maps within range to ctr. """
         map_ctr = Counter()
