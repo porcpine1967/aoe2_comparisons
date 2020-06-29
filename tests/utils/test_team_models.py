@@ -158,6 +158,16 @@ def test_info_for():
     assert rating == None
     assert won_state == None
 
+
+def test_score():
+    row = ['1582141235', '33', '16:13:20:18', '1563:1605:1609:1624', '1547211:216695:261325:261818', '1:1:2:2', '2', '']
+    mr = utils.team_models.MatchReport(row)
+    assert mr.score == 65
+
+    row = ['1582141235', '33', '16:13:20:18', '1563:1605:1609:1624', '1547211:216695:261325:261818', '1:1:2:2', '1', '']
+    mr = utils.team_models.MatchReport(row)
+    assert mr.score == -65
+
 # Player
 def test_add_civ_percentages():
     player = utils.team_models.Player('foo')

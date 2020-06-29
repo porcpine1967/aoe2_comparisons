@@ -81,7 +81,21 @@ class CachedCiv:
         self.name = civ.name
         self.rankings = civ.rankings
         self.popularity = civ.popularity
+        self.win_rates = civ.win_rates
+        self.win_rate_rankings = civ.win_rate_rankings
         self.totals = civ.totals
+
+    @property
+    def civ(self):
+        civ = Civ(self.name)
+        civ.rankings = self.rankings
+        civ.popularity = self.popularity
+        # civ.win_rates = self.win_rates
+        # civ.win_rate_rankings = self.win_rate_rankings
+        civ.totals = self.totals
+        return civ
+
+
 
 class Rankable:
     """ Derived supercalss from Civ so get similar functionality for Map."""
@@ -90,6 +104,8 @@ class Rankable:
         self.rankings = defaultdict(default_ranking)
         self.popularity = defaultdict(default_popularity)
         self.totals = defaultdict(default_popularity)
+        self.win_rates = defaultdict(default_popularity)
+        self.win_rate_rankings = defaultdict(default_ranking)
 
 class Rating(Rankable):
     """ Simple object for holding rankable data for ratings."""
@@ -100,13 +116,6 @@ class Map(Rankable):
 
 class Civ(Rankable):
     """ Holds rankable data for a civ. """
-    def from_cache(cached_civ):
-        civ = Civ(cached_civ.name)
-        civ.rankings = cached_civ.rankings
-        civ.popularity = cached_civ.popularity
-        civ.totals = cached_civ.totals
-        return civ
-
     def print_info(self, maps_with_data, rating_keys):
         mt_array = ['{:18}', '{:^9s}'] + ['{:^9s}' for _ in rating_keys]
         map_template = ' '.join(mt_array)
@@ -159,6 +168,30 @@ def civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges)
         snapshot_players = [p for p in players if start < p.best_rating() <= edge]
         for player in snapshot_players:
             player.add_civ_percentages(civ_ctr, map_name, start, edge)
+        start = edge - 50
+    return counters
+
+def civ_winrate_counters_for_map_bucketed_by_rating(players, map_name, edges):
+    """ Returns an array of tuples, each of which represents the winrate of a civilization
+    for every rated player for matches played when holding a rating between the edges. Note, a player is only checked
+    if the player's "best rating" falls within the edges.
+    players: the list of players to evaluate
+    map_name: which map to build the counters for. 'all' will ignore map as a filter
+    edges: an array of edges in which to delineate ratings. First edge should be greater than zero, so first "bucket"
+    will be from 1 to edges[0], second edge from edges[0] to edges[1], finishing at edges[-2] to edges[-1]."""
+    print('calculating civ_winrate_counters_for_map_bucketed_by_rating for map {} for {} edges'.format(map_name, len(edges)))
+    start = 0
+    counters = []
+    for edge in edges:
+        win_ctr = Counter()
+        total_ctr = Counter()
+        snapshot_players = [p for p in players if start < p.best_rating() <= edge]
+        for player in snapshot_players:
+            player.add_win_percentages(win_ctr, total_ctr, map_name, start, edge)
+        civ_ctr = Counter()
+        counters.append(civ_ctr)
+        for civ_name in total_ctr:
+            civ_ctr[civ_name] = win_ctr[civ_name]/total_ctr[civ_name]
         start = edge - 50
     return counters
 
@@ -467,7 +500,7 @@ def cached_results(data_set_type, module):
         cached_civs, maps_with_data, rating_keys = pickle.load(f)
         civs = {}
         for cc in cached_civs:
-            civs[cc.name] = Civ.from_cache(cc)
+            civs[cc.name] = cc.civ
     return civs, maps_with_data, rating_keys
 
 def heatmap_key_table(mapping):
@@ -560,13 +593,6 @@ def base_args():
         modules = (utils.solo_models, utils.team_models,)
     return modules, args.source
 
-def runner(fun):
-    """ Runs a function with civs, maps_with_data, and rating_keys as arguments. """
-    modules, data_set_type = base_args()
-    for module in modules:
-        civs, maps_with_data, rating_keys = cached_results(data_set_type, module)
-        fun(module, data_set_type, civs, maps_with_data, rating_keys)
-
 def write_all(module, data_set_type, civs, maps_with_data, rating_keys):
     """ Write out all the tables to all the files. """
     half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
@@ -636,8 +662,15 @@ def print_cdf(rk, data, t):
             count = idx + d - 0.5
             print('{:>9} {:>4} ({:>4}%)'.format(rk, idx, round(100*count/t, 1)))
             break
+
+def runner(fun):
+    """ Runs a function with civs, maps_with_data, and rating_keys as arguments. """
+    modules, data_set_type = base_args()
+    for module in modules:
+        civs, maps_with_data, rating_keys = cached_results(data_set_type, module)
+        fun(module, data_set_type, civs, maps_with_data, rating_keys)
+
 def run():
     runner(cdfs)
-
 if __name__ == '__main__':
     run()

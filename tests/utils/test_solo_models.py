@@ -142,6 +142,12 @@ def test_info_for():
     civ, rating, won_state = mr.info_for('994498')
     assert won_state == 'na'
 
+def test_score():
+    mr = utils.solo_models.MatchReport(['1588091226', '9', '12:16', '1040:1014', '994498:1979688', '1:2', '1', '0'])
+    assert mr.score == 26
+    mr = utils.solo_models.MatchReport(['1588091226', '9', '12:16', '1040:1014', '994498:1979688', '1:2', '2', '0'])
+    assert mr.score == -26
+
 # Player
 def test_add_civ_percentages():
     player = utils.solo_models.Player('foo')

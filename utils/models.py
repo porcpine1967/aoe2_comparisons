@@ -69,7 +69,7 @@ class Player:
         total_civ_ctr = Counter()
         for m in self.matches:
             civ, rating, winner = m.info_for(self.player_id)
-            if winner == 'na':
+            if winner == 'na' or m.mirror:
                 continue
             if start < rating <= edge and (map_name == 'all' or m.map == map_name):
                 total_civ_ctr[civ] += 1
@@ -204,6 +204,18 @@ class MatchReport():
         self.match_type = 'v'.join([str(i) for i in sorted(team_ctr.values())])
         self.winner = int(row[6])
         self.version = row[7]
+        self.mirror = len(set(civs)) == 1
+
+    @property
+    def score(self):
+        """ Difference in rating between winning team and losing team. Negative scores imply upset. """
+        ratings = defaultdict(lambda: 0)
+        for player_data in self.players.values():
+            ratings[player_data['team']] += player_data['rating']
+        if self.winner == 1:
+            return ratings[1] - ratings[2]
+        else:
+            return ratings[2] - ratings[1]
 
     def info_for(self, player_id):
         player_id = str(player_id)
