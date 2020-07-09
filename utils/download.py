@@ -85,7 +85,7 @@ def matches(profile_id, module, update=False):
 
         data = json.loads(r.text)
         for match_data in data:
-            if match_data['leaderboard_id'] == module.leaderboard and match_data['num_players'] >= 2:
+            if match_data['leaderboard_id'] == module.leaderboard and module.acceptable_player_count(match_data['num_players']):
                 match = Match(match_data)
                 r1v1[match.started] = match
         if len(data) < MAX_DOWNLOAD:
@@ -176,7 +176,8 @@ def new_matches_and_ratings(to_check, checked, module):
 
     print('Downloading {} profiles'.format(len(to_download)))
     with concurrent.futures.ThreadPoolExecutor() as p:
-        p.map(functools.partial(both, module=module), to_download)
+        for profile_id in p.map(functools.partial(both, module=module), to_download):
+            checked.add(profile_id)
     checked.update(to_download)
     if to_download:
         new_matches_and_ratings(to_download, checked, module)
@@ -188,6 +189,7 @@ def both_force(profile_id, module):
 def both(profile_id, module):
     matches(profile_id, module)
     ratings(profile_id, module)
+    return profile_id
 
 def reconcile(module):
     match_ids = profiles_from_files('matches', module)
@@ -212,7 +214,8 @@ def update(module):
     checked = set(profiles_from_files('matches', module))
     print('Downloading {} profiles'.format(len(user_list)))
     with concurrent.futures.ThreadPoolExecutor() as p:
-        p.map(functools.partial(both_force, module=module), user_list)
+        for profile_id in p.map(functools.partial(both_force, module=module), user_list):
+            checked.add(profile_id)
     downloaded = set([u.profile_id for u in all_users])
     new_matches_and_ratings(downloaded, checked, module)
 

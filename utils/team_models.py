@@ -29,6 +29,9 @@ MAPS = [
     'Wolf Hill',
 ]
 
+def acceptable_player_count(cnt):
+    cnt > 2
+
 def as_str():
     return 'Ranked Team Matches'
 

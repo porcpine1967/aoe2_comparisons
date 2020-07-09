@@ -34,6 +34,9 @@ MAPS = [
     'Team Islands',
     ]
 
+def acceptable_player_count(cnt):
+    cnt == 2
+
 def as_str():
     return 'Ranked 1v1 Matches'
 

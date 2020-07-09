@@ -235,7 +235,9 @@ class MatchReport():
         with open(klass.data_file(data_set_type)) as f:
             reader = csv.reader(f)
             for row in reader:
-                reports.append(MatchReport(row))
+                m = MatchReport(row)
+                if m.version and int(m.version) >= 36202:
+                    reports.append(m)
         return reports
 
     def by_map(klass, data_set_type, map_type):

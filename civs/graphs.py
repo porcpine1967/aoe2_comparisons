@@ -90,12 +90,10 @@ class CachedCiv:
         civ = Civ(self.name)
         civ.rankings = self.rankings
         civ.popularity = self.popularity
-        # civ.win_rates = self.win_rates
-        # civ.win_rate_rankings = self.win_rate_rankings
+        civ.win_rates = self.win_rates
+        civ.win_rate_rankings = self.win_rate_rankings
         civ.totals = self.totals
         return civ
-
-
 
 class Rankable:
     """ Derived supercalss from Civ so get similar functionality for Map."""
@@ -222,13 +220,25 @@ def loaded_civs(data_set_type, module, players=None):
             civs[civ].rankings['Overall'] = idx + 1
             civs[civ].popularity['Overall'] = ctr[civ]/total
             civs[civ].totals['Overall'] = total
-    # # Calculate overall popularity per rating bucket
+    # Calculate overall win rate
+    for ctr in civ_winrate_counters_for_map_bucketed_by_rating(players, 'all', [10000]):
+        for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
+            civs[civ].win_rate_rankings['Overall'] = idx + 1
+            civs[civ].win_rates['Overall'] = ctr[civ]
+
+    # Calculate overall popularity per rating bucket
     for ctr_idx, ctr in enumerate(civ_popularity_counters_for_map_bucketed_by_rating(players, 'all', edges)):
         total = sum(ctr.values())
         for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
             civs[civ].rankings[rating_keys[ctr_idx]] = idx + 1
             civs[civ].popularity[rating_keys[ctr_idx]] = ctr[civ]/total
             civs[civ].totals[rating_keys[ctr_idx]] = total
+
+    # Calculate overall win rate per rating bucket
+    for ctr_idx, ctr in enumerate(civ_winrate_counters_for_map_bucketed_by_rating(players, 'all', edges)):
+        for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
+            civs[civ].win_rate_rankings[rating_keys[ctr_idx]] = idx + 1
+            civs[civ].win_rates[rating_keys[ctr_idx]] = ctr[civ]
 
     # Calculate overall popularity by map
     maps_with_data = []
@@ -242,6 +252,13 @@ def loaded_civs(data_set_type, module, players=None):
                 civs[civ].popularity[map_name] = ctr[civ]/total
                 civs[civ].totals[map_name] = total
 
+    # Calculate overall win rate by map
+    for map_name in maps_with_data:
+        for ctr in civ_winrate_counters_for_map_bucketed_by_rating(players, map_name, [10000]):
+            for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
+                civs[civ].win_rate_rankings[map_name] = idx + 1
+                civs[civ].win_rates[map_name] = ctr[civ]
+
     # Calculate overall popularity by map by rating bucket
     for map_name in maps_with_data:
         for ctr_idx, ctr in enumerate(civ_popularity_counters_for_map_bucketed_by_rating(players, map_name, edges)):
@@ -250,6 +267,14 @@ def loaded_civs(data_set_type, module, players=None):
                 civs[civ].rankings['{}-{}'.format(map_name, rating_keys[ctr_idx])] = idx + 1
                 civs[civ].popularity['{}-{}'.format(map_name, rating_keys[ctr_idx])] = ctr[civ]/total
                 civs[civ].totals['{}-{}'.format(map_name, rating_keys[ctr_idx])] = total
+
+    # Calculate overall win rate by map by rating bucket
+    for map_name in maps_with_data:
+        for ctr_idx, ctr in enumerate(civ_winrate_counters_for_map_bucketed_by_rating(players, map_name, edges)):
+            for idx, civ in enumerate(sorted(ctr, key=lambda x: ctr[x], reverse=True)):
+                civs[civ].win_rate_rankings['{}-{}'.format(map_name, rating_keys[ctr_idx])] = idx + 1
+                civs[civ].win_rates['{}-{}'.format(map_name, rating_keys[ctr_idx])] = ctr[civ]
+
     return civs, maps_with_data, rating_keys
 
 def civs_x_maps_heatmap_table(civs, maps):
@@ -577,7 +602,7 @@ def rebuild_cache(module):
     """ For use after resampling data (elo.sample). """
     for data_set_type in ('test', 'model', 'verification',):
         print('making player rating cache for', data_set_type)
-        module.Player.cache_player_ratings(data_set_type)
+#        module.Player.cache_player_ratings(data_set_type)
         cache_results(data_set_type, module)
 
 def base_args():
@@ -637,7 +662,7 @@ def cdfs(module, data_set_type, civs, maps, rating_keys):
             rt += rating.popularity[popularity_key]
             data.append(rt)
         print_cdf(rk, data, len(civs))
-        
+
     print('Weighted Maps ({})'.format(len(civmap_keys)))
     for rk, rating in ratings_a.items():
         data = []
@@ -663,6 +688,20 @@ def print_cdf(rk, data, t):
             print('{:>9} {:>4} ({:>4}%)'.format(rk, idx, round(100*count/t, 1)))
             break
 
+def winrates(module, data_set_type, civs, maps_with_data, rating_keys):
+    half_keys = [k for i, k in enumerate(rating_keys) if not i % 2]
+    print('Arena')
+    key = 'Arena'
+    for civ_name in sorted(civs, key=lambda x: civs[x].win_rate_rankings[key]):
+        civ = civs[civ_name]
+        print(' {:15}: {:.2f} ({:>4})'.format(civ_name, civ.win_rates[key], round(civ.popularity[key]*civ.totals[key])))
+    for rk in half_keys:
+        key = 'Arena-{}'.format(rk)
+        print('{} ({})'.format(rk, round(civ.totals[key])))
+        for civ_name in sorted(civs, key=lambda x: civs[x].win_rate_rankings[key]):
+            civ = civs[civ_name]
+            print(' {:15}: {:.2f} ({:>4})'.format(civ_name, civ.win_rates[key], round(civ.popularity[key]*civ.totals[key])))
+
 def runner(fun):
     """ Runs a function with civs, maps_with_data, and rating_keys as arguments. """
     modules, data_set_type = base_args()
@@ -671,6 +710,7 @@ def runner(fun):
         fun(module, data_set_type, civs, maps_with_data, rating_keys)
 
 def run():
-    runner(cdfs)
+    runner(winrates)
+
 if __name__ == '__main__':
     run()
