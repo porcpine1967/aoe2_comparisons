@@ -32,6 +32,9 @@ MAPS = [
 def as_str():
     return 'Ranked Team Matches'
 
+def num_player_check(num_players):
+    num_players > 2
+
 class Player(utils.models.Player):
     def rating_cache_file(data_set_type, mincount):
         return '{}/player_rating_{}_{}_data.csv'.format(DATA_DIR, data_set_type, mincount)

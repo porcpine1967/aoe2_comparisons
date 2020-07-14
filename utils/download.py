@@ -8,6 +8,7 @@ import functools
 import os
 import sys
 import pathlib
+import pprint
 import re
 import sys
 import time
@@ -85,7 +86,7 @@ def matches(profile_id, module, update=False):
 
         data = json.loads(r.text)
         for match_data in data:
-            if match_data['leaderboard_id'] == module.leaderboard and match_data['num_players'] >= 2:
+            if match_data['leaderboard_id'] == module.leaderboard and module.num_player_check(match_data['num_players']):
                 match = Match(match_data)
                 r1v1[match.started] = match
         if len(data) < MAX_DOWNLOAD:
@@ -94,7 +95,11 @@ def matches(profile_id, module, update=False):
     matches = []
     for starting in sorted(r1v1, reverse=True):
         match = r1v1[starting]
-        current_rating = match.rating_for(profile_id)
+        try:
+            current_rating = match.rating_for(profile_id)
+        except:
+            print(match.to_csv)
+            raise
         if not current_rating:
             continue
         matches.append(match)
