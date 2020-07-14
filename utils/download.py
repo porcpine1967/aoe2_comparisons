@@ -8,6 +8,7 @@ import functools
 import os
 import sys
 import pathlib
+import pprint
 import re
 import sys
 import time
@@ -94,7 +95,11 @@ def matches(profile_id, module, update=False):
     matches = []
     for starting in sorted(r1v1, reverse=True):
         match = r1v1[starting]
-        current_rating = match.rating_for(profile_id)
+        try:
+            current_rating = match.rating_for(profile_id)
+        except:
+            print(match.to_csv)
+            raise
         if not current_rating:
             continue
         matches.append(match)
