@@ -551,6 +551,7 @@ def base_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('klass', choices=('team', 'solo', 'all',), help="team, solo, or all")
     parser.add_argument('--source', default='model', choices=('test', 'model', 'verification',), help="which data set type to use (default model)")
+    parser.add_argument('--rebuild', action='store_true', help="Rebuild cache")
     args = parser.parse_args()
     if args.klass == 'team':
         modules = (utils.team_models,)
@@ -558,12 +559,14 @@ def base_args():
         modules = (utils.solo_models,)
     elif args.klass == 'all':
         modules = (utils.solo_models, utils.team_models,)
-    return modules, args.source
+    return modules, args.source, args.rebuild
 
 def runner(fun):
     """ Runs a function with civs, maps_with_data, and rating_keys as arguments. """
-    modules, data_set_type = base_args()
+    modules, data_set_type, rebuild = base_args()
     for module in modules:
+        if rebuild:
+            rebuild_cache(module)
         civs, maps_with_data, rating_keys = cached_results(data_set_type, module)
         fun(module, data_set_type, civs, maps_with_data, rating_keys)
 
