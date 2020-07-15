@@ -712,13 +712,6 @@ def winrates(module, data_set_type, civs, maps_with_data, rating_keys):
             civ = civs[civ_name]
             print(' {:15}: {:.2f} ({:>4})'.format(civ_name, civ.win_rates[key], round(civ.popularity[key]*civ.totals[key])))
 
-def runner(fun):
-    """ Runs a function with civs, maps_with_data, and rating_keys as arguments. """
-    modules, data_set_type = base_args()
-    for module in modules:
-        civs, maps_with_data, rating_keys = cached_results(data_set_type, module)
-        fun(module, data_set_type, civs, maps_with_data, rating_keys)
-
 def run():
     runner(winrates)
 
